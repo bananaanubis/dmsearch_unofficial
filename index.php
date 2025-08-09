@@ -1,5 +1,9 @@
 <?php
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 /**
  * 種族リストを、PHPの機能だけで、特殊文字（ヴ、小文字）と清濁音を完全に考慮してソートする
  * @param array $a 比較する要素1
