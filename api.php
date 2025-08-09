@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-$pdo = new PDO('mysql:host=localhost;dbname=dmsearch;charset=utf8', 'dmuser', 'dmpass');
+require_once 'db_connect.php';
 
 $type = isset($_GET['type']) ? $_GET['type'] : '';
 $query = isset($_GET['query']) ? trim($_GET['query']) : '';
