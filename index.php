@@ -343,8 +343,18 @@ $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 // --- 総件数取得 ---
 $count_sql = "SELECT COUNT(DISTINCT card.card_id) FROM card JOIN card_detail cd ON card.card_id = cd.card_id {$join_str} {$where}";
 $stmt = $pdo->prepare($count_sql);
-$stmt->execute($params);
-$total = $stmt->fetchColumn();
+
+// SQL文に含まれるプレースホルダーと、パラメータ配列のキーを一致させる
+$count_params = [];
+preg_match_all('/:([a-zA-Z0-9_]+)/', $count_sql, $matches);
+if (!empty($matches[1])) {
+    foreach ($matches[1] as $placeholder) {
+        if (isset($params[':' . $placeholder])) {
+            $count_params[':' . $placeholder] = $params[':' . $placeholder];
+        }
+    }
+}
+$stmt->execute($count_params);
 
 
 // --- カード情報取得 ---
