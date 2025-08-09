@@ -1,7 +1,6 @@
 <?php
 header('Content-Type: application/json');
-$pdo = new PDO('mysql:host=localhost;dbname=dmsearch;charset=utf8', 'dmuser', 'dmpass');
-
+require_once 'db_connect.php';
 $card_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($card_id === 0) {
