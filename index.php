@@ -1,3 +1,9 @@
+code
+PHP
+download
+content_copy
+expand_less
+
 <?php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -147,7 +153,6 @@ if ($is_submitted) {
     if (!empty($_GET['main_civs'])) { $selected_main_civs = array_values(array_filter($_GET['main_civs'], fn($v) => $v != 0)); }
     if (!empty($_GET['exclude_civs'])) { $selected_exclude_civs = array_values(array_filter($_GET['exclude_civs'], fn($v) => $v != 0)); }
 }
-
 
 // === SQLクエリの組み立て ===
 $conditions = [];
@@ -314,9 +319,7 @@ if ($selected_mana !== 'all') {
 $civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
 $civ_type_conditions = [];
 if (!$cost_zero && !$cost_infinity) {
-    if ($mono_color_status == 1) {
-        $civ_type_conditions[] = "card.card_id IN (SELECT card_id FROM {$civ_summary_subquery} AS civ_summary WHERE civ_summary.civ_count = 1)";
-    }
+    if ($mono_color_status == 1) { $civ_type_conditions[] = "card.card_id IN (SELECT card_id FROM {$civ_summary_subquery} AS civ_summary WHERE civ_summary.civ_count = 1)"; }
     if ($multi_color_status == 1) {
         $multi_cond = "card.card_id IN (SELECT card_id FROM {$civ_summary_subquery} AS civ_summary WHERE civ_summary.civ_count > 1)";
         if(!empty($selected_exclude_civs)) {
@@ -331,9 +334,7 @@ if (!empty($selected_main_civs)) {
 }
 if (!empty($civ_type_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_type_conditions) . ')'; }
 if (!empty($civ_select_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_select_conditions) . ')'; }
-if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_select_conditions)) {
-    $conditions[] = "1 = 0";
-}
+if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_select_conditions)) { $conditions[] = "1 = 0"; }
 
 
 // === SQLクエリの実行 ===
@@ -383,6 +384,7 @@ $sql = "
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params); // ★同じ$paramsを、そのままもう一度使う
 $cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // === テンプレート表示のための準備 ===
 $totalPages = ceil($total / $perPage);
 $civ_stmt = $pdo->query("SELECT civilization_id, civilization_name FROM civilization ORDER BY civilization_id ASC");
