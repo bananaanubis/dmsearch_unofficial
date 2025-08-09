@@ -9,7 +9,7 @@ try {
         // 【本番環境】Railwayが提供する環境変数を読み込む
         $db_host = getenv('MYSQLHOST');
         $db_port = getenv('MYSQLPORT');
-        $db_name = getenv('MYSQLDATABASE'); // ここに 'railway' が入るはず
+        $db_name = getenv('MYSQLDATABASE');
         $db_user = getenv('MYSQLUSER');
         $db_pass = getenv('MYSQLPASSWORD');
     } else {
@@ -148,6 +148,7 @@ if ($is_submitted) {
     if (!empty($_GET['exclude_civs'])) { $selected_exclude_civs = array_values(array_filter($_GET['exclude_civs'], fn($v) => $v != 0)); }
 }
 
+
 // === SQLクエリの組み立て ===
 $conditions = [];
 $params = []; // パラメータ配列を初期化
@@ -156,25 +157,39 @@ $joins = [];
 // --- Part 1: キーワード検索 ---
 if ($search !== '') {
     $keyword_conditions = [];
+    $params[':search_keyword'] = '%' . $search . '%'; // パラメータは最初に一度だけ定義
+
     if ($search_name) { $keyword_conditions[] = 'card.card_name LIKE :search_keyword'; }
-    if ($search_reading) { $keyword_conditions[] = 'card.reading LIKE :search_keyword'; }
-    if ($search_text) { $keyword_conditions[] = 'card.text LIKE :search_keyword'; }
-    if ($search_flavortext) { $keyword_conditions[] = 'card.flavortext LIKE :search_keyword'; }
+    if ($search_reading) { $keyword_conditions[] = 'card.reading LIKE :search_keyword_reading'; }
+    if ($search_text) { $keyword_conditions[] = 'card.text LIKE :search_keyword_text'; }
+    if ($search_flavortext) { $keyword_conditions[] = 'card.flavortext LIKE :search_keyword_flavor'; }
     if ($search_race) {
         $joins['card_race'] = 'LEFT JOIN card_race ON card.card_id = card_race.card_id';
         $joins['race'] = 'LEFT JOIN race ON card_race.race_id = race.race_id';
-        $keyword_conditions[] = 'race.race_name LIKE :search_keyword';
+        $keyword_conditions[] = 'race.race_name LIKE :search_keyword_race';
     }
     if ($search_illus) {
         $joins['card_illus_search'] = 'LEFT JOIN card_illus ON card.card_id = card_illus.card_id';
         $joins['illus_search'] = 'LEFT JOIN illus ON card_illus.illus_id = illus.illus_id';
-        $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword';
+        $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword_illus';
     }
+    
+    // プレースホルダーごとに、同じ値をパラメータに追加する
+    if ($search_reading) { $params[':search_keyword_reading'] = $params[':search_keyword']; }
+    if ($search_text) { $params[':search_keyword_text'] = $params[':search_keyword']; }
+    if ($search_flavortext) { $params[':search_keyword_flavor'] = $params[':search_keyword']; }
+    if ($search_race) { $params[':search_keyword_race'] = $params[':search_keyword']; }
+    if ($search_illus) { $params[':search_keyword_illus'] = $params[':search_keyword']; }
+
     if (!empty($keyword_conditions)) {
         $conditions[] = '(' . implode(' OR ', $keyword_conditions) . ')';
-        $params[':search_keyword'] = '%' . $search . '%'; // ★条件を追加した時だけ、パラメータも追加
+    } else {
+        // もしキーワード検索が空で、チェックボックスもすべてオフだった場合、
+        // :search_keyword パラメータが不要になるので削除する
+        unset($params[':search_keyword']);
     }
 }
+
 
 // --- Part 2: 数値範囲などの検索 ---
 if ($cost_infinity) {
@@ -184,11 +199,11 @@ if ($cost_infinity) {
 } else {
     if ($cost_min !== '' && is_numeric($cost_min)) {
         $conditions[] = 'card.cost >= :cost_min';
-        $params[':cost_min'] = intval($cost_min); // ★条件を追加した時だけ、パラメータも追加
+        $params[':cost_min'] = intval($cost_min);
     }
     if ($cost_max !== '' && is_numeric($cost_max)) {
         $conditions[] = 'card.cost <= :cost_max';
-        $params[':cost_max'] = intval($cost_max); // ★条件を追加した時だけ、パラメータも追加
+        $params[':cost_max'] = intval($cost_max);
     }
 }
 if ($pow_infinity) {
@@ -196,7 +211,7 @@ if ($pow_infinity) {
 } else {
     if ($pow_min !== '' && is_numeric($pow_min)) {
         $conditions[] = 'card.pow >= :pow_min';
-        $params[':pow_min'] = intval($pow_min); // ★以下、同様
+        $params[':pow_min'] = intval($pow_min);
     }
     if ($pow_max !== '' && is_numeric($pow_max)) {
         $conditions[] = 'card.pow <= :pow_max';
@@ -309,7 +324,7 @@ if ($selected_mana !== 'all') {
     }
 }
 
-// --- Part 7: 文明検索 (この部分はプレースホルダーを使わないので、そのままでOK) ---
+// --- Part 7: 文明検索 (プレースホルダーを使わないので、そのままでOK) ---
 $civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
 $civ_type_conditions = [];
 if (!$cost_zero && !$cost_infinity) {
@@ -332,40 +347,13 @@ if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_
 
 
 // === SQLクエリの実行 ===
-$join_str = !empty($joins) ? implode(' ', array_unique($joins)) : ''; // 重複するJOINを削除
+$join_str = !empty($joins) ? implode(' ', array_unique($joins)) : '';
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
-
-
 
 // --- 総件数取得 ---
 $count_sql = "SELECT COUNT(DISTINCT card.card_id) FROM card JOIN card_detail cd ON card.card_id = cd.card_id {$join_str} {$where}";
 $stmt = $pdo->prepare($count_sql);
-
-echo "<h1>DEBUGGING INFO (COUNT QUERY):</h1>";
-echo "<h2>Generated SQL:</h2>";
-echo "<pre>" . htmlspecialchars($count_sql) . "</pre>";
-
-echo "<h2>Parameters to Bind:</h2>";
-echo "<pre>";
-print_r($params);
-echo "</pre>";
-
-preg_match_all('/:([a-zA-Z0-9_]+)/', $count_sql, $matches);
-$placeholder_count = count($matches[0]);
-$param_count = count($params);
-
-echo "<h2>Counts:</h2>";
-echo "<p>Placeholders in SQL: " . $placeholder_count . "</p>";
-echo "<p>Parameters in Array: " . $param_count . "</p>";
-
-if ($placeholder_count !== $param_count) {
-    echo "<h2 style='color:red;'>MISMATCH DETECTED!</h2>";
-} else {
-    echo "<h2 style='color:green;'>Counts Match. The error might be something else.</h2>";
-}
-die(); // 実行をここで止めて、デバッグ情報だけを表示する
-
-$stmt->execute($params); // ★完成した$paramsをそのまま使う
+$stmt->execute($params);
 $total = $stmt->fetchColumn();
 
 
@@ -403,7 +391,7 @@ $sql = "
     LIMIT $perPage OFFSET $offset
 ";
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params); // ★同じ$paramsを、そのままもう一度使う
+$stmt->execute($params);
 $cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // === テンプレート表示のための準備 ===
