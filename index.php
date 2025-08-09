@@ -151,7 +151,7 @@ if ($is_submitted) {
 
 // === SQLクエリの組み立て ===
 $conditions = [];
-$params = [];
+$params = []; // パラメータ配列を初期化
 $joins = [];
 
 // --- Part 1: キーワード検索 ---
@@ -173,7 +173,7 @@ if ($search !== '') {
     }
     if (!empty($keyword_conditions)) {
         $conditions[] = '(' . implode(' OR ', $keyword_conditions) . ')';
-        $params[':search_keyword'] = '%' . $search . '%';
+        $params[':search_keyword'] = '%' . $search . '%'; // ★条件を追加した時だけ、パラメータも追加
     }
 }
 
@@ -185,11 +185,11 @@ if ($cost_infinity) {
 } else {
     if ($cost_min !== '' && is_numeric($cost_min)) {
         $conditions[] = 'card.cost >= :cost_min';
-        $params[':cost_min'] = intval($cost_min);
+        $params[':cost_min'] = intval($cost_min); // ★条件を追加した時だけ、パラメータも追加
     }
     if ($cost_max !== '' && is_numeric($cost_max)) {
         $conditions[] = 'card.cost <= :cost_max';
-        $params[':cost_max'] = intval($cost_max);
+        $params[':cost_max'] = intval($cost_max); // ★条件を追加した時だけ、パラメータも追加
     }
 }
 if ($pow_infinity) {
@@ -197,7 +197,7 @@ if ($pow_infinity) {
 } else {
     if ($pow_min !== '' && is_numeric($pow_min)) {
         $conditions[] = 'card.pow >= :pow_min';
-        $params[':pow_min'] = intval($pow_min);
+        $params[':pow_min'] = intval($pow_min); // ★以下、同様
     }
     if ($pow_max !== '' && is_numeric($pow_max)) {
         $conditions[] = 'card.pow <= :pow_max';
@@ -310,7 +310,7 @@ if ($selected_mana !== 'all') {
     }
 }
 
-// --- Part 7: 文明検索 ---
+// --- Part 7: 文明検索 (この部分はプレースホルダーを使わないので、そのままでOK) ---
 $civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
 $civ_type_conditions = [];
 if (!$cost_zero && !$cost_infinity) {
@@ -337,56 +337,28 @@ if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_
 
 
 // === SQLクエリの実行 ===
-$join_str = !empty($joins) ? implode(' ', $joins) : '';
+$join_str = !empty($joins) ? implode(' ', array_unique($joins)) : ''; // 重複するJOINを削除
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
 // --- 総件数取得 ---
 $count_sql = "SELECT COUNT(DISTINCT card.card_id) FROM card JOIN card_detail cd ON card.card_id = cd.card_id {$join_str} {$where}";
 $stmt = $pdo->prepare($count_sql);
-
-// SQL文に含まれるプレースホルダーと、パラメータ配列のキーを一致させる
-$count_params = [];
-preg_match_all('/:([a-zA-Z0-9_]+)/', $count_sql, $matches);
-if (!empty($matches[1])) {
-    foreach ($matches[1] as $placeholder) {
-        if (isset($params[':' . $placeholder])) {
-            $count_params[':' . $placeholder] = $params[':' . $placeholder];
-        }
-    }
-}
-$stmt->execute($count_params);
+$stmt->execute($params); // ★完成した$paramsをそのまま使う
+$total = $stmt->fetchColumn();
 
 
 // --- カード情報取得 ---
 // ORDER BY句を動的に生成
 $order_by_clause = '';
 switch ($selected_sort) {
-    case 'release_old':
-        $order_by_clause = 'ORDER BY cd.release_date ASC, card.card_id ASC';
-        break;
-    case 'cost_desc':
-        $order_by_clause = 'ORDER BY card.cost DESC, civ_ids ASC, card.card_id ASC';
-        break;
-    case 'cost_asc':
-        $order_by_clause = 'ORDER BY card.cost ASC, civ_ids ASC, card.card_id ASC';
-        break;
-    case 'name_asc':
-        $order_by_clause = 'ORDER BY card.reading ASC, card.card_id ASC';
-        break;
-    case 'name_desc':
-        $order_by_clause = 'ORDER BY card.reading DESC, card.card_id DESC';
-        break;
-    // ★★★ 今回の修正箇所 ★★★
-    case 'power_desc':
-        $order_by_clause = 'ORDER BY card.pow DESC, civ_ids ASC, card.card_id ASC';
-        break;
-    case 'power_asc':
-        $order_by_clause = 'ORDER BY card.pow ASC, civ_ids ASC, card.card_id ASC';
-        break;
-    // ★★★ ここまで ★★★
-    default: // release_new
-        $order_by_clause = 'ORDER BY cd.release_date DESC, card.card_id ASC';
-        break;
+    case 'release_old': $order_by_clause = 'ORDER BY cd.release_date ASC, card.card_id ASC'; break;
+    case 'cost_desc': $order_by_clause = 'ORDER BY card.cost DESC, civ_ids ASC, card.card_id ASC'; break;
+    case 'cost_asc': $order_by_clause = 'ORDER BY card.cost ASC, civ_ids ASC, card.card_id ASC'; break;
+    case 'name_asc': $order_by_clause = 'ORDER BY card.reading ASC, card.card_id ASC'; break;
+    case 'name_desc': $order_by_clause = 'ORDER BY card.reading DESC, card.card_id DESC'; break;
+    case 'power_desc': $order_by_clause = 'ORDER BY card.pow DESC, civ_ids ASC, card.card_id ASC'; break;
+    case 'power_asc': $order_by_clause = 'ORDER BY card.pow ASC, civ_ids ASC, card.card_id ASC'; break;
+    default: $order_by_clause = 'ORDER BY cd.release_date DESC, card.card_id ASC'; break;
 }
 
 // 最終的なSQL
@@ -409,9 +381,8 @@ $sql = "
     LIMIT $perPage OFFSET $offset
 ";
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt->execute($params); // ★同じ$paramsを、そのままもう一度使う
 $cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 // === テンプレート表示のための準備 ===
 $totalPages = ceil($total / $perPage);
 $civ_stmt = $pdo->query("SELECT civilization_id, civilization_name FROM civilization ORDER BY civilization_id ASC");
