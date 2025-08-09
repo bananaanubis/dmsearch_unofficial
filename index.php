@@ -335,9 +335,36 @@ if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_
 $join_str = !empty($joins) ? implode(' ', array_unique($joins)) : ''; // 重複するJOINを削除
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
+
+
 // --- 総件数取得 ---
 $count_sql = "SELECT COUNT(DISTINCT card.card_id) FROM card JOIN card_detail cd ON card.card_id = cd.card_id {$join_str} {$where}";
 $stmt = $pdo->prepare($count_sql);
+
+echo "<h1>DEBUGGING INFO (COUNT QUERY):</h1>";
+echo "<h2>Generated SQL:</h2>";
+echo "<pre>" . htmlspecialchars($count_sql) . "</pre>";
+
+echo "<h2>Parameters to Bind:</h2>";
+echo "<pre>";
+print_r($params);
+echo "</pre>";
+
+preg_match_all('/:([a-zA-Z0-9_]+)/', $count_sql, $matches);
+$placeholder_count = count($matches[0]);
+$param_count = count($params);
+
+echo "<h2>Counts:</h2>";
+echo "<p>Placeholders in SQL: " . $placeholder_count . "</p>";
+echo "<p>Parameters in Array: " . $param_count . "</p>";
+
+if ($placeholder_count !== $param_count) {
+    echo "<h2 style='color:red;'>MISMATCH DETECTED!</h2>";
+} else {
+    echo "<h2 style='color:green;'>Counts Match. The error might be something else.</h2>";
+}
+die(); // 実行をここで止めて、デバッグ情報だけを表示する
+
 $stmt->execute($params); // ★完成した$paramsをそのまま使う
 $total = $stmt->fetchColumn();
 
