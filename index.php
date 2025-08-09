@@ -48,7 +48,7 @@ function customRaceSort($a, $b) {
 }
 
 // === 初期設定 ===
-$pdo = new PDO('mysql:host=localhost;dbname=dmsearch;charset=utf8', 'dmuser', 'dmpass');
+$pdo = new PDO('mysql:host=mysql.railway.internal;dbname=mysql;charset=utf8', 'root', 'GfIvGwVazPEHkSxSdidUKWOSYxzsOqOX');
 $perPage = 50;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $perPage;
