@@ -125,35 +125,26 @@ $joins = [];
 // --- Part 1: キーワード検索 ---
 if ($search !== '') {
     $keyword_conditions = [];
-    $params[':search_keyword'] = '%' . $search . '%'; // パラメータは最初に一度だけ定義
+    $params[':search_keyword'] = '%' . $search . '%';
 
     if ($search_name) { $keyword_conditions[] = 'card.card_name LIKE :search_keyword'; }
-    if ($search_reading) { $keyword_conditions[] = 'card.reading LIKE :search_keyword_reading'; }
-    if ($search_text) { $keyword_conditions[] = 'card.text LIKE :search_keyword_text'; }
-    if ($search_flavortext) { $keyword_conditions[] = 'card.flavortext LIKE :search_keyword_flavor'; }
+    if ($search_reading) { $keyword_conditions[] = 'card.reading LIKE :search_keyword'; }
+    if ($search_text) { $keyword_conditions[] = 'card.text LIKE :search_keyword'; }
+    if ($search_flavortext) { $keyword_conditions[] = 'card.flavortext LIKE :search_keyword'; }
     if ($search_race) {
         $joins['card_race'] = 'LEFT JOIN card_race ON card.card_id = card_race.card_id';
         $joins['race'] = 'LEFT JOIN race ON card_race.race_id = race.race_id';
-        $keyword_conditions[] = 'race.race_name LIKE :search_keyword_race';
+        $keyword_conditions[] = 'race.race_name LIKE :search_keyword';
     }
     if ($search_illus) {
         $joins['card_illus_search'] = 'LEFT JOIN card_illus ON card.card_id = card_illus.card_id';
         $joins['illus_search'] = 'LEFT JOIN illus ON card_illus.illus_id = illus.illus_id';
-        $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword_illus';
+        $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword';
     }
     
-    // プレースホルダーごとに、同じ値をパラメータに追加する
-    if ($search_reading) { $params[':search_keyword_reading'] = $params[':search_keyword']; }
-    if ($search_text) { $params[':search_keyword_text'] = $params[':search_keyword']; }
-    if ($search_flavortext) { $params[':search_keyword_flavor'] = $params[':search_keyword']; }
-    if ($search_race) { $params[':search_keyword_race'] = $params[':search_keyword']; }
-    if ($search_illus) { $params[':search_keyword_illus'] = $params[':search_keyword']; }
-
     if (!empty($keyword_conditions)) {
         $conditions[] = '(' . implode(' OR ', $keyword_conditions) . ')';
     } else {
-        // もしキーワード検索が空で、チェックボックスもすべてオフだった場合、
-        // :search_keyword パラメータが不要になるので削除する
         unset($params[':search_keyword']);
     }
 }
@@ -292,26 +283,57 @@ if ($selected_mana !== 'all') {
     }
 }
 
-// --- Part 7: 文明検索 (プレースホルダーを使わないので、そのままでOK) ---
-$civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
-$civ_type_conditions = [];
+// --- Part 7: 文明検索 (安全な実装) ---
+$conditions_for_civs = []; // 文明関連のAND条件をまとめる配列
+
+// Part 7.1: 単色・多色判定の条件グループ (ORで結合される)
 if (!$cost_zero && !$cost_infinity) {
-    if ($mono_color_status == 1) { $civ_type_conditions[] = "card.card_id IN (SELECT card_id FROM {$civ_summary_subquery} AS civ_summary WHERE civ_summary.civ_count = 1)"; }
+    $civ_type_conditions = [];
+    $civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
+
+    if ($mono_color_status == 1) {
+        $civ_type_conditions[] = "card.card_id IN (SELECT card_id FROM {$civ_summary_subquery} AS civ_summary WHERE civ_summary.civ_count = 1)";
+    }
     if ($multi_color_status == 1) {
         $multi_cond = "card.card_id IN (SELECT card_id FROM {$civ_summary_subquery} AS civ_summary WHERE civ_summary.civ_count > 1)";
-        if(!empty($selected_exclude_civs)) {
-            foreach($selected_exclude_civs as $exclude_id) { $multi_cond .= " AND card.card_id NOT IN (SELECT card_id FROM card_civilization WHERE civilization_id = " . intval($exclude_id) . ")"; }
+        if (!empty($selected_exclude_civs)) {
+            $exclude_parts = [];
+            foreach ($selected_exclude_civs as $index => $exclude_id) {
+                $placeholder = ':exclude_civ_' . $index;
+                $exclude_parts[] = "card.card_id NOT IN (SELECT card_id FROM card_civilization WHERE civilization_id = {$placeholder})";
+                $params[$placeholder] = intval($exclude_id);
+            }
+            // (多色である AND Aを含まない AND Bを含まない...) という条件を生成
+            $multi_cond = '(' . $multi_cond . ' AND ' . implode(' AND ', $exclude_parts) . ')';
         }
         $civ_type_conditions[] = $multi_cond;
     }
+
+    if (!empty($civ_type_conditions)) {
+        $conditions_for_civs[] = '(' . implode(' OR ', $civ_type_conditions) . ')';
+    }
 }
-$civ_select_conditions = [];
+
+// Part 7.2: メイン文明選択の条件グループ (ORで結合される)
 if (!empty($selected_main_civs)) {
-    foreach($selected_main_civs as $main_id) { $civ_select_conditions[] = "card.card_id IN (SELECT card_id FROM card_civilization WHERE civilization_id = " . intval($main_id) . ")"; }
+    $placeholders = [];
+    foreach ($selected_main_civs as $index => $main_id) {
+        $ph = ':main_civ_' . $index;
+        $placeholders[] = $ph;
+        $params[$ph] = intval($main_id);
+    }
+    // 指定した文明のいずれかを持つカード
+    $conditions_for_civs[] = "card.card_id IN (SELECT card_id FROM card_civilization WHERE civilization_id IN (" . implode(',', $placeholders) . "))";
 }
-if (!empty($civ_type_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_type_conditions) . ')'; }
-if (!empty($civ_select_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_select_conditions) . ')'; }
-if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_select_conditions)) { $conditions[] = "1 = 0"; }
+
+
+// Part 7.3: 最終的な条件句の生成
+if (!empty($conditions_for_civs)) {
+    $conditions[] = implode(' AND ', $conditions_for_civs);
+} elseif (!$cost_zero && !$cost_infinity && ($mono_color_status != 1 || $multi_color_status != 1 || !empty($selected_main_civs))) {
+    // コストなし/無限ではなく、文明に関する条件が一切指定されていない場合は、文明を持つカードはヒットさせない
+    $conditions[] = "1 = 0";
+}
 
 
 // === SQLクエリの実行 ===
