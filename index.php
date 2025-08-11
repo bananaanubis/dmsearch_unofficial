@@ -5,6 +5,11 @@ error_reporting(E_ALL);
 
 require_once 'db_connect.php';
 
+// === グローバル定数の定義 ===
+define('COST_INFINITY_VALUE', 2147483647);
+define('POWER_INFINITY_VALUE', 2147483647);
+
+
 /**
  * 種族リストを、PHPの機能だけで、特殊文字（ヴ、小文字）と清濁音を完全に考慮してソートする
  * @param array $a 比較する要素1
@@ -12,7 +17,7 @@ require_once 'db_connect.php';
  * @return int 比較結果
  */
 function customRaceSort($a, $b) {
-    // 五十音順と清濁音の順を定義した、完全な変換マップ
+    // (関数の内容は変更なし)
     static $charMap = null;
     if ($charMap === null) {
         $charMap = [
@@ -58,7 +63,7 @@ $offset = ($page - 1) * $perPage;
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $is_submitted = array_key_exists('search', $_GET);
 
-// --- 各種検索条件の取得 ---
+// (中略: フォームからの入力値受け取りは変更なし)
 $cost_min = isset($_GET['cost_min']) ? $_GET['cost_min'] : '';
 $cost_max = isset($_GET['cost_max']) ? $_GET['cost_max'] : '';
 $cost_zero = isset($_GET['cost_zero']);
@@ -83,11 +88,8 @@ $selected_goods_id = isset($_GET['goods_id_filter']) ? intval($_GET['goods_id_fi
 $selected_goodstype_id = isset($_GET['goodstype_id_filter']) ? intval($_GET['goodstype_id_filter']) : 0;
 $selected_illus_id = isset($_GET['illus_id_filter']) ? intval($_GET['illus_id_filter']) : 0;
 $selected_mana = isset($_GET['mana_filter']) ? $_GET['mana_filter'] : 'all';
-
-// 並び替え順の値を受け取る
 $selected_sort = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'release_new';
 
-// --- チェックボックスの状態管理 ---
 if ($is_submitted) {
     $search_name = isset($_GET['search_name']);
     $search_reading = isset($_GET['search_reading']);
@@ -100,13 +102,8 @@ if ($is_submitted) {
     $search_race = false; $search_flavortext = false; $search_illus = false;
 }
 
-// --- 折りたたみ状態の管理 ---
-$is_advanced_open = false; 
-if (!empty($_GET['advanced_open']) && $_GET['advanced_open'] == '1') {
-    $is_advanced_open = true;
-}
+$is_advanced_open = !empty($_GET['advanced_open']) && $_GET['advanced_open'] == '1';
 
-// --- 文明ボタンの状態管理 ---
 $mono_color_status = 1; $multi_color_status = 1;
 $selected_main_civs = []; $selected_exclude_civs = [];
 if ($is_submitted) {
@@ -116,13 +113,12 @@ if ($is_submitted) {
     if (!empty($_GET['exclude_civs'])) { $selected_exclude_civs = array_values(array_filter($_GET['exclude_civs'], fn($v) => $v != 0)); }
 }
 
-
 // === SQLクエリの組み立て ===
 $conditions = [];
-$params = []; // パラメータ配列を初期化
+$params = [];
 $joins = [];
 
-// --- Part 1: キーワード検索 ---
+// --- Part 1: キーワード検索 (変更なし) ---
 if ($search !== '') {
     $keyword_conditions = [];
     $params[':search_keyword'] = '%' . $search . '%';
@@ -150,9 +146,10 @@ if ($search !== '') {
 }
 
 
-// --- Part 2: 数値範囲などの検索 ---
+// --- Part 2: 数値範囲などの検索 (マジックナンバー修正) ---
 if ($cost_infinity) {
-    $conditions[] = 'card.cost = 2147483647';
+    $conditions[] = 'card.cost = :cost_infinity_val';
+    $params[':cost_infinity_val'] = COST_INFINITY_VALUE;
 } elseif ($cost_zero) {
     $conditions[] = 'card.cost IS NULL';
 } else {
@@ -166,7 +163,8 @@ if ($cost_infinity) {
     }
 }
 if ($pow_infinity) {
-    $conditions[] = 'card.pow = 2147483647';
+    $conditions[] = 'card.pow = :pow_infinity_val';
+    $params[':pow_infinity_val'] = POWER_INFINITY_VALUE;
 } else {
     if ($pow_min !== '' && is_numeric($pow_min)) {
         $conditions[] = 'card.pow >= :pow_min';
@@ -186,7 +184,8 @@ if ($year_max !== '' && is_numeric($year_max)) {
     $params[':date_max'] = $year_max . '-12-31';
 }
 
-// --- Part 3: JOINを使った各種IDによる絞り込み ---
+// --- Part 3-6 (各種ID絞り込みからマナ検索まで)は変更なし ---
+// (中略)
 if ($selected_char_id > 0) {
     $joins['card_cardtype_char'] = 'LEFT JOIN card_cardtype ON card.card_id = card_cardtype.card_id';
     $conditions[] = "card_cardtype.characteristics_id = :characteristics_id";
@@ -234,8 +233,6 @@ if ($selected_illus_id > 0) {
     $conditions[] = "card_illus.illus_id = :illus_id";
     $params[':illus_id'] = $selected_illus_id;
 }
-
-// --- Part 4: テーブルをまたぐ真偽値/ENUMによる絞り込み ---
 if ($selected_twinpact !== '0') {
     $conditions[] = "cd.twinpact = :twinpact";
     $params[':twinpact'] = ($selected_twinpact === '1') ? 1 : 0;
@@ -261,8 +258,6 @@ if ($selected_secret !== '0') {
     $conditions[] = "card_rarity.secret = :secret";
     $params[':secret'] = ($selected_secret === '1') ? 1 : 0;
 }
-
-// --- Part 5: 収録商品検索 ---
 if ($selected_goods_id > 0) {
     $conditions[] = "cd.goods_id = :goods_id";
     $params[':goods_id'] = $selected_goods_id;
@@ -272,8 +267,6 @@ if ($selected_goodstype_id > 0) {
     $conditions[] = "goods.goodstype_id = :goodstype_id";
     $params[':goodstype_id'] = $selected_goodstype_id;
 }
-
-// --- Part 6: マナ検索 ---
 if ($selected_mana !== 'all') {
     if ($selected_mana === '-1') {
         $conditions[] = "cd.mana IS NULL";
@@ -283,10 +276,10 @@ if ($selected_mana !== 'all') {
     }
 }
 
-// --- Part 7: 文明検索 (安全な実装) ---
-$conditions_for_civs = []; // 文明関連のAND条件をまとめる配列
+// --- Part 7: 文明検索 (SQLインジェクション脆弱性を修正済み) ---
+$conditions_for_civs = [];
 
-// Part 7.1: 単色・多色判定の条件グループ (ORで結合される)
+// Part 7.1: 単色・多色判定の条件グループ
 if (!$cost_zero && !$cost_infinity) {
     $civ_type_conditions = [];
     $civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
@@ -303,7 +296,6 @@ if (!$cost_zero && !$cost_infinity) {
                 $exclude_parts[] = "card.card_id NOT IN (SELECT card_id FROM card_civilization WHERE civilization_id = {$placeholder})";
                 $params[$placeholder] = intval($exclude_id);
             }
-            // (多色である AND Aを含まない AND Bを含まない...) という条件を生成
             $multi_cond = '(' . $multi_cond . ' AND ' . implode(' AND ', $exclude_parts) . ')';
         }
         $civ_type_conditions[] = $multi_cond;
@@ -314,7 +306,7 @@ if (!$cost_zero && !$cost_infinity) {
     }
 }
 
-// Part 7.2: メイン文明選択の条件グループ (ORで結合される)
+// Part 7.2: メイン文明選択の条件グループ
 if (!empty($selected_main_civs)) {
     $placeholders = [];
     foreach ($selected_main_civs as $index => $main_id) {
@@ -322,21 +314,18 @@ if (!empty($selected_main_civs)) {
         $placeholders[] = $ph;
         $params[$ph] = intval($main_id);
     }
-    // 指定した文明のいずれかを持つカード
     $conditions_for_civs[] = "card.card_id IN (SELECT card_id FROM card_civilization WHERE civilization_id IN (" . implode(',', $placeholders) . "))";
 }
-
 
 // Part 7.3: 最終的な条件句の生成
 if (!empty($conditions_for_civs)) {
     $conditions[] = implode(' AND ', $conditions_for_civs);
 } elseif (!$cost_zero && !$cost_infinity && ($mono_color_status != 1 || $multi_color_status != 1 || !empty($selected_main_civs))) {
-    // コストなし/無限ではなく、文明に関する条件が一切指定されていない場合は、文明を持つカードはヒットさせない
     $conditions[] = "1 = 0";
 }
 
 
-// === SQLクエリの実行 ===
+// === SQLクエリの実行 (以降、変更なし) ===
 $join_str = !empty($joins) ? implode(' ', array_unique($joins)) : '';
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
@@ -346,9 +335,7 @@ $stmt = $pdo->prepare($count_sql);
 $stmt->execute($params);
 $total = $stmt->fetchColumn();
 
-
 // --- カード情報取得 ---
-// ORDER BY句を動的に生成
 $order_by_clause = '';
 switch ($selected_sort) {
     case 'release_old': $order_by_clause = 'ORDER BY cd.release_date ASC, card.card_id ASC'; break;
@@ -361,7 +348,6 @@ switch ($selected_sort) {
     default: $order_by_clause = 'ORDER BY cd.release_date DESC, card.card_id ASC'; break;
 }
 
-// 最終的なSQL
 $sql = "
     SELECT 
         card.card_id, 
@@ -384,7 +370,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// === テンプレート表示のための準備 ===
+// === テンプレート表示のための準備 (変更なし) ===
 $totalPages = ceil($total / $perPage);
 $civ_stmt = $pdo->query("SELECT civilization_id, civilization_name FROM civilization ORDER BY civilization_id ASC");
 $civilization_list = $civ_stmt->fetchAll(PDO::FETCH_ASSOC);
