@@ -1,7 +1,7 @@
 // === ページの読み込み完了後に実行される処理 ===
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- ① 操作する要素をまとめて取得 (変更なし) ---
+    // --- ① 操作する要素をまとめて取得 ---
     const searchForm = document.getElementById('searchForm');
     const resetBtn = document.getElementById('resetBtn');
     const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
@@ -25,8 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const goodsSelect = document.querySelector('select[name="goods_id_filter"]');
     const sortOrderSelect = document.getElementById('sort-order');
     const sortOrderHiddenInput = document.getElementById('sort-order-hidden');
+    const cardGrid = document.querySelector('.card-grid');
+    const modal = document.getElementById('card-modal');
 
-    // --- ② 状態更新のための共通関数 (変更なし) ---
+    // --- ② 状態更新のための共通関数 ---
     const toggleCostInputs = () => {
         if (!costZeroCheck || !costInfinityCheck || !costMinInput || !costMaxInput) return;
         const disable = costZeroCheck.checked || costInfinityCheck.checked;
@@ -48,206 +50,219 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     function updateCivilizationControls() {
-        if (!multiColorBtn || mainCivButtons.length === 0) return;
+        if (!multiColorBtn || !mainCivButtons || !excludeSection) return;
         const isMultiOn = !multiColorBtn.classList.contains('is-off');
         const isAnyMainCivOnExcludingColorless = [...mainCivButtons].some(btn => !btn.classList.contains('is-off') && btn.dataset.civId !== '6');
-        if (excludeSection) {
-            excludeSection.style.display = (isMultiOn && isAnyMainCivOnExcludingColorless) ? 'block' : 'none';
-        }
+        excludeSection.style.display = (isMultiOn && isAnyMainCivOnExcludingColorless) ? 'block' : 'none';
+        
         const mainCivStatus = {};
         mainCivButtons.forEach(btn => { mainCivStatus[btn.dataset.civId] = !btn.classList.contains('is-off'); });
         excludeCivWrappers.forEach(wrapper => {
             const civId = wrapper.id.replace('exclude-wrapper-', '');
-            wrapper.style.display = mainCivStatus[civId] === false ? 'block' : 'none';
+            wrapper.style.display = mainCivStatus[civId] ? 'none' : 'block';
         });
     }
     const updateToggleButtonLabel = () => {
-        if (!toggleBtn) return;
+        if (!toggleBtn || !searchCheckboxes) return;
         const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
         toggleBtn.textContent = anyChecked ? '全解除' : '全選択';
     };
 
-    // --- ③ イベントリスナーの設定 (リセットボタン以外は変更なし) ---
-    if (toggleAdvancedBtn) {
+    // --- ③ イベントリスナーの設定 ---
+    
+    // 詳細検索エリアの開閉
+    if (toggleAdvancedBtn && advancedSearchArea && advancedStateInput) {
         toggleAdvancedBtn.addEventListener('click', () => {
-            const isOpen = advancedSearchArea.classList.contains('is-open');
-            advancedSearchArea.classList.toggle('is-open', !isOpen);
-            toggleAdvancedBtn.textContent = isOpen ? 'さらに条件をしぼる' : '条件を隠す';
-            advancedStateInput.value = isOpen ? '0' : '1';
+            const isOpen = advancedSearchArea.classList.toggle('is-open');
+            toggleAdvancedBtn.textContent = isOpen ? '条件を隠す' : 'さらに条件をしぼる';
+            advancedStateInput.value = isOpen ? '1' : '0';
         });
     }
-    if (goodsTypeSelect) {
+
+    // 商品リストの連動
+    if (goodsTypeSelect && goodsSelect) {
         goodsTypeSelect.addEventListener('change', () => {
             fetch(`api.php?type=goods&goodstype_id=${goodsTypeSelect.value}`).then(r => r.json()).then(data => {
                 goodsSelect.innerHTML = '<option value="0">指定なし</option>';
                 data.forEach(goods => { goodsSelect.appendChild(new Option(goods.name, goods.id)); });
-            });
+            }).catch(e => console.error("Fetch goods error:", e));
         });
     }
-    if (costZeroCheck) {
+
+    // コストチェックボックスの排他制御
+    if (costZeroCheck && costInfinityCheck) {
         costZeroCheck.addEventListener('change', () => {
             if (costZeroCheck.checked) costInfinityCheck.checked = false;
             toggleCostInputs();
         });
-    }
-    if (costInfinityCheck) {
         costInfinityCheck.addEventListener('change', () => {
             if (costInfinityCheck.checked) costZeroCheck.checked = false;
             toggleCostInputs();
         });
     }
+    
+    // パワーチェックボックス
     if (powInfinityCheck) {
         powInfinityCheck.addEventListener('change', togglePowerInputs);
     }
+    
+    // ★★★ 文明ボタンのクリックイベントリスナー ★★★
     if (searchForm) {
         searchForm.addEventListener('click', (e) => {
             const button = e.target.closest('.civ-btn');
-            if (!button) return;
-            const isTurningOff = !button.classList.contains('is-off');
-            if (button === monoColorBtn && isTurningOff && multiColorBtn.classList.contains('is-off')) return;
-            if (button === multiColorBtn && isTurningOff && monoColorBtn.classList.contains('is-off')) return;
+            if (!button) return; // civ-btn以外は無視
+
+            // イベントがボタン自身から発生した場合のみ処理
+            e.preventDefault();
+
+            if (monoColorBtn && multiColorBtn) {
+                const isTurningOff = !button.classList.contains('is-off');
+                if (button === monoColorBtn && isTurningOff && multiColorBtn.classList.contains('is-off')) return;
+                if (button === multiColorBtn && isTurningOff && monoColorBtn.classList.contains('is-off')) return;
+            }
+
             const targetInput = document.getElementById(button.dataset.targetInput);
-            button.classList.toggle('is-off');
             if (targetInput) {
+                button.classList.toggle('is-off');
                 targetInput.value = button.classList.contains('is-off') ? '0' : (button.dataset.civId || '1');
             }
             updateCivilizationControls();
         });
     }
-    if (sortOrderSelect) {
+    
+    // 並び替え
+    if (sortOrderSelect && sortOrderHiddenInput && searchForm) {
         sortOrderSelect.addEventListener('change', () => {
             sortOrderHiddenInput.value = sortOrderSelect.value;
             searchForm.submit();
         });
     }
-    if (toggleBtn) {
+    
+    // 検索対象の全選択/全解除
+    if (toggleBtn && searchCheckboxes) {
         toggleBtn.addEventListener('click', () => {
             const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
             searchCheckboxes.forEach(cb => cb.checked = !anyChecked);
             updateToggleButtonLabel();
         });
+        searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
     }
-    searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
-
-    // ★★★★★ リセットボタンの処理を最終確定版に再構築 ★★★★★
+    
+    // ★★★★★ リセットボタン処理の完全な再実装 ★★★★★
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             
-            // --- 1. テキスト入力と数値入力の値をリセット ---
+            // 1. テキストと数値入力をクリア
             const searchInput = document.querySelector('input[name="search"]');
             if (searchInput) searchInput.value = "";
-
             ['cost_min', 'cost_max', 'pow_min', 'pow_max', 'year_min', 'year_max'].forEach(name => {
                 const el = document.querySelector(`input[name="${name}"]`);
-                if(el) el.value = "";
+                if (el) el.value = "";
             });
 
-            // --- 2. チェックボックスをデフォルト状態（すべてfalse）にリセット ---
+            // 2. チェックボックスを全てfalseに
             ['cost_zero', 'cost_infinity', 'pow_infinity'].forEach(id => {
                 const el = document.getElementById(id);
-                if(el) el.checked = false;
+                if (el) el.checked = false;
             });
 
-            // --- 3. ドロップダウンをデフォルト状態にリセット ---
+            // 3. 検索対象チェックボックスをデフォルトに
+            if (searchCheckboxes) {
+                document.querySelector('input[name="search_name"]').checked = true;
+                document.querySelector('input[name="search_reading"]').checked = true;
+                document.querySelector('input[name="search_text"]').checked = true;
+                document.querySelector('input[name="search_race"]').checked = false;
+                document.querySelector('input[name="search_flavortext"]').checked = false;
+                document.querySelector('input[name="search_illus"]').checked = false;
+            }
+
+            // 4. ドロップダウンをデフォルトに
             document.querySelectorAll('select.styled-select').forEach(select => {
                 const name = select.name;
-                if (name === 'mana_filter') {
-                    select.value = 'all';
-                } else if (select.id === 'sort-order') {
-                    select.value = 'release_new';
-                } else {
-                    select.value = '0';
-                }
+                if (name === 'mana_filter') select.value = 'all';
+                else if (select.id === 'sort-order') select.value = 'release_new';
+                else select.value = '0';
             });
             if (sortOrderHiddenInput) sortOrderHiddenInput.value = 'release_new';
 
-            // --- 4. 検索対象チェックボックスをデフォルト状態にリセット ---
-            if(document.querySelector('input[name="search_name"]')) document.querySelector('input[name="search_name"]').checked = true;
-            if(document.querySelector('input[name="search_reading"]')) document.querySelector('input[name="search_reading"]').checked = true;
-            if(document.querySelector('input[name="search_text"]')) document.querySelector('input[name="search_text"]').checked = true;
-            if(document.querySelector('input[name="search_race"]')) document.querySelector('input[name="search_race"]').checked = false;
-            if(document.querySelector('input[name="search_flavortext"]')) document.querySelector('input[name="search_flavortext"]').checked = false;
-            if(document.querySelector('input[name="search_illus"]')) document.querySelector('input[name="search_illus"]').checked = false;
+            // 5. 文明ボタンをデフォルトに
+            if (mainCivButtons) {
+                 document.querySelectorAll('.civ-btn').forEach(button => {
+                    const targetInput = document.getElementById(button.dataset.targetInput);
+                    if (!targetInput) return;
+                    const buttonId = button.dataset.targetInput;
+                    if (buttonId === 'mono_color' || buttonId === 'multi_color') {
+                        button.classList.remove('is-off');
+                        targetInput.value = '1';
+                    } else {
+                        button.classList.add('is-off');
+                        targetInput.value = '0';
+                    }
+                });
+            }
 
-            // --- 5. 文明ボタンをデフォルト状態にリセット ---
-            document.querySelectorAll('.civ-btn').forEach(button => {
-                const targetInput = document.getElementById(button.dataset.targetInput);
-                if (!targetInput) return;
-                const buttonId = button.dataset.targetInput;
-                if (buttonId === 'mono_color' || buttonId === 'multi_color') {
-                    button.classList.remove('is-off');
-                    targetInput.value = '1';
-                } else {
-                    button.classList.add('is-off');
-                    targetInput.value = '0';
-                }
-            });
-            
-            // --- 6. 全てのUI状態更新関数を呼び出し、表示を完全に同期させる ---
+            // 6. 最後に、全てのUI状態更新関数を呼び出して表示を完全に同期
             updateToggleButtonLabel();
+            toggleCostInputs(); // これでテキストボックスが有効になる
+            togglePowerInputs();
             updateCivilizationControls();
-            toggleCostInputs(); // コスト入力欄が有効になる
-            togglePowerInputs(); // パワー入力欄が有効になる
-            
-            // --- 7. 商品リストをリセットするためにchangeイベントを発火 ---
+
+            // 7. 商品リストをリセット
             if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
         });
     }
 
-    // --- ④ 初期化処理 (変更なし) ---
+    // --- ④ 初期化処理 ---
+    // ページ読み込み時に各UIを正しい状態に設定
     updateToggleButtonLabel();
     updateCivilizationControls();
     toggleCostInputs();
     togglePowerInputs();
 
     // --- ⑤ モーダル機能 (変更なし) ---
-    const cardGrid = document.querySelector('.card-grid');
-    const modal = document.getElementById('card-modal');
-    if (!cardGrid || !modal) return;
-    const modalCloseBtn = document.getElementById('modal-close-btn');
-    const modalOverlay = document.querySelector('.modal-overlay');
-    const modalCardName = document.getElementById('modal-card-name');
-    const modalCardImage = document.getElementById('modal-card-image');
-    const modalCardType = document.getElementById('modal-card-type');
-    const modalCivilization = document.getElementById('modal-civilization');
-    const modalRarity = document.getElementById('modal-rarity');
-    const modalPower = document.getElementById('modal-power');
-    const modalCost = document.getElementById('modal-cost');
-    const modalMana = document.getElementById('modal-mana');
-    const modalRace = document.getElementById('modal-race');
-    const modalIllustrator = document.getElementById('modal-illustrator');
-    const modalText = document.getElementById('modal-text');
-    cardGrid.addEventListener('click', (e) => {
-        const cardImage = e.target.closest('.card-image-item');
-        if (!cardImage) return;
-        const cardId = cardImage.dataset.cardId;
-        if (!cardId) return;
-        fetch(`get_card_details.php?id=${cardId}`).then(r => r.json()).then(data => {
-            if (data.error) { console.error('API Error:', data.error); return; }
-            modalCardName.textContent = data.card_name || '---';
-            modalCardImage.src = data.modelnum ? `card/${data.modelnum}.webp` : 'path/to/placeholder.webp';
-            modalCardImage.alt = data.card_name || 'カード画像';
-            modalCardType.textContent = data.card_type || '---';
-            modalCivilization.textContent = data.civilization || '---';
-            modalRarity.textContent = data.rarity || '---';
-            modalPower.textContent = data.pow || '---';
-            modalCost.textContent = data.cost || '---';
-            modalMana.textContent = data.mana || '---';
-            modalRace.textContent = data.race || '---';
-            modalIllustrator.textContent = data.illustrator || '---';
-            modalText.innerHTML = data.text || '（テキスト情報なし）';
-            modal.style.display = 'flex';
-        }).catch(error => console.error('Fetch Error:', error));
-    });
-    const closeModal = () => modal.style.display = 'none';
-    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
-    if (modalOverlay) modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) closeModal();
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.style.display !== 'none') closeModal();
-    });
-});
+    if (cardGrid && modal) {
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalOverlay = document.querySelector('.modal-overlay');
+        const modalCardName = document.getElementById('modal-card-name');
+        const modalCardImage = document.getElementById('modal-card-image');
+        const modalCardType = document.getElementById('modal-card-type');
+        const modalCivilization = document.getElementById('modal-civilization');
+        const modalRarity = document.getElementById('modal-rarity');
+        const modalPower = document.getElementById('modal-power');
+        const modalCost = document.getElementById('modal-cost');
+        const modalMana = document.getElementById('modal-mana');
+        const modalRace = document.getElementById('modal-race');
+        const modalIllustrator = document.getElementById('modal-illustrator');
+        const modalText = document.getElementById('modal-text');
 
-このコードで、リセットボタンは期待通りの動作をするはずです。
-何度もお手数をおかけし大変申し訳ございませんでした。ご確認のほど、よろしくお願いいたします。
+        cardGrid.addEventListener('click', (e) => {
+            const cardImage = e.target.closest('.card-image-item');
+            if (!cardImage) return;
+            const cardId = cardImage.dataset.cardId;
+            if (!cardId) return;
+            fetch(`get_card_details.php?id=${cardId}`).then(r => r.json()).then(data => {
+                if (data.error) { console.error('API Error:', data.error); return; }
+                if(modalCardName) modalCardName.textContent = data.card_name || '---';
+                if(modalCardImage) {
+                    modalCardImage.src = data.modelnum ? `card/${data.modelnum}.webp` : 'path/to/placeholder.webp';
+                    modalCardImage.alt = data.card_name || 'カード画像';
+                }
+                if(modalCardType) modalCardType.textContent = data.card_type || '---';
+                if(modalCivilization) modalCivilization.textContent = data.civilization || '---';
+                if(modalRarity) modalRarity.textContent = data.rarity || '---';
+                if(modalPower) modalPower.textContent = data.pow || '---';
+                if(modalCost) modalCost.textContent = data.cost || '---';
+                if(modalMana) modalMana.textContent = data.mana || '---';
+                if(modalRace) modalRace.textContent = data.race || '---';
+                if(modalIllustrator) modalIllustrator.textContent = data.illustrator || '---';
+                if(modalText) modalText.innerHTML = data.text || '（テキスト情報なし）';
+                modal.style.display = 'flex';
+            }).catch(error => console.error('Fetch Error:', error));
+        });
+
+        const closeModal = () => modal.style.display = 'none';
+        if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+        if (modalOverlay) modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display !== 'none') closeModal(); });
+    }
+});
