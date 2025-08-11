@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ② 状態更新のための共通関数 ---
 
+    // コスト入力欄の有効/無効を切り替える関数
     const toggleCostInputs = () => {
         if (!costZeroCheck || !costInfinityCheck || !costMinInput || !costMaxInput) return;
         const disable = costZeroCheck.checked || costInfinityCheck.checked;
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // パワー入力欄の有効/無効を切り替える関数
     const togglePowerInputs = () => {
         if (!powInfinityCheck || !powMinInput || !powMaxInput) return;
         const disable = powInfinityCheck.checked;
@@ -64,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // 文明コントロールの表示状態を更新する関数
     function updateCivilizationControls() {
         if (!multiColorBtn || mainCivButtons.length === 0) return;
         const isMultiOn = !multiColorBtn.classList.contains('is-off');
@@ -84,10 +87,17 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.style.display = mainCivStatus[civId] === false ? 'block' : 'none';
         });
     }
+    
+    // 検索対象チェックボックスのラベルを更新する関数
+    const updateToggleButtonLabel = () => {
+        if (!toggleBtn) return;
+        const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
+        toggleBtn.textContent = anyChecked ? '全解除' : '全選択';
+    };
 
     // --- ③ イベントリスナーの設定 ---
     
-    if (toggleAdvancedBtn && advancedSearchArea && advancedStateInput) {
+    if (toggleAdvancedBtn) {
         toggleAdvancedBtn.addEventListener('click', () => {
             const isOpen = advancedSearchArea.classList.contains('is-open');
             advancedSearchArea.classList.toggle('is-open', !isOpen);
@@ -96,28 +106,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (goodsTypeSelect && goodsSelect) {
+    if (goodsTypeSelect) {
         goodsTypeSelect.addEventListener('change', () => {
-            const selectedGoodsTypeId = goodsTypeSelect.value;
-            fetch(`api.php?type=goods&goodstype_id=${selectedGoodsTypeId}`)
+            fetch(`api.php?type=goods&goodstype_id=${goodsTypeSelect.value}`)
                 .then(response => response.json())
                 .then(data => {
                     goodsSelect.innerHTML = '<option value="0">指定なし</option>';
                     data.forEach(goods => {
-                        const option = document.createElement('option');
-                        option.value = goods.id;
-                        option.textContent = goods.name;
-                        goodsSelect.appendChild(option);
+                        goodsSelect.appendChild(new Option(goods.name, goods.id));
                     });
                 });
         });
     }
     
-    if (costZeroCheck && costInfinityCheck) {
+    if (costZeroCheck) {
         costZeroCheck.addEventListener('change', () => {
             if (costZeroCheck.checked) costInfinityCheck.checked = false;
             toggleCostInputs();
         });
+    }
+    if (costInfinityCheck) {
         costInfinityCheck.addEventListener('change', () => {
             if (costInfinityCheck.checked) costZeroCheck.checked = false;
             toggleCostInputs();
@@ -145,71 +153,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    if (sortOrderSelect && sortOrderHiddenInput && searchForm) {
+    if (sortOrderSelect) {
         sortOrderSelect.addEventListener('change', () => {
             sortOrderHiddenInput.value = sortOrderSelect.value;
             searchForm.submit();
         });
     }
 
-    const updateToggleButtonLabel = () => {
-        if (!toggleBtn) return;
-        const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
-        toggleBtn.textContent = anyChecked ? '全解除' : '全選択';
-    };
-    const toggleCheckboxes = () => {
-        const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
-        searchCheckboxes.forEach(cb => cb.checked = !anyChecked);
-        updateToggleButtonLabel();
-    };
-    if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
+            searchCheckboxes.forEach(cb => cb.checked = !anyChecked);
+            updateToggleButtonLabel();
+        });
+    }
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
 
-    // ★★★ リセットボタンの処理を修正・強化 ★★★
+    // ★★★★★ リセットボタンの処理を再構築 ★★★★★
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
-            // テキスト入力
-            const searchInput = document.querySelector('input[name="search"]');
-            if (searchInput) searchInput.value = "";
             
-            // 数値入力欄（コスト、パワー、年）をリセット
-            ['cost_min', 'cost_max', 'pow_min', 'pow_max', 'year_min', 'year_max'].forEach(name => {
-                const el = document.querySelector(`input[name="${name}"]`);
-                if(el) {
-                    el.value = "";
-                    el.disabled = false; // disabled状態を明示的に解除
-                }
-            });
+            // 1. 基本的なフォーム要素をリセット
+            if (searchForm) searchForm.reset();
 
-            // チェックボックス (コスト・パワー) をすべてオフにする
-            ['cost_zero', 'cost_infinity', 'pow_infinity'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.checked = false;
-            });
-
-            // ドロップダウン (並び替え含む) をデフォルト値に戻す
-            document.querySelectorAll('select.styled-select').forEach(select => {
-                const defaultOption = select.querySelector('option[value="0"], option[value="all"], option[value="release_new"]');
-                if (defaultOption) {
-                    select.value = defaultOption.value;
-                }
-            });
-            // 隠しフィールドもリセット
-            if (sortOrderHiddenInput) sortOrderHiddenInput.value = 'release_new';
-            
-            // 検索対象チェックボックス (デフォルト状態)
+            // 2. カスタムUIと状態を確実にデフォルトに戻す
+            // 2-1. 検索対象チェックボックス
             document.querySelector('input[name="search_name"]').checked = true;
             document.querySelector('input[name="search_reading"]').checked = true;
             document.querySelector('input[name="search_text"]').checked = true;
             document.querySelector('input[name="search_race"]').checked = false;
             document.querySelector('input[name="search_flavortext"]').checked = false;
             document.querySelector('input[name="search_illus"]').checked = false;
-
-            // 文明ボタン (デフォルト状態)
+            
+            // 2-2. 文明ボタン
             document.querySelectorAll('.civ-btn').forEach(button => {
                 const targetInput = document.getElementById(button.dataset.targetInput);
                 if (!targetInput) return;
-                
                 const buttonId = button.dataset.targetInput;
                 if (buttonId === 'mono_color' || buttonId === 'multi_color') {
                     button.classList.remove('is-off');
@@ -220,11 +199,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
-            // 全てのUI状態更新関数を呼び出して、表示を完全にリセットする
+            // 2-3. 並び替えの隠しフィールド
+            if (sortOrderHiddenInput) sortOrderHiddenInput.value = 'release_new';
+
+            // 3. 全てのUI状態更新関数を呼び出して、表示を完全に同期させる
             updateToggleButtonLabel();
             updateCivilizationControls();
+            toggleCostInputs();
+            togglePowerInputs();
             
-            // 商品リストをリセットするためにchangeイベントを発火
+            // 4. 商品リストをリセットするためにchangeイベントを発火
             if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
         });
     }
@@ -236,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     togglePowerInputs();
 
     // --- ⑤ モーダル機能 (変更なし) ---
+    // (中略)
     const cardGrid = document.querySelector('.card-grid');
     const modal = document.getElementById('card-modal');
     if (!cardGrid || !modal) return;
@@ -283,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalMana.textContent = data.mana || '---';
                 modalRace.textContent = data.race || '---';
                 modalIllustrator.textContent = data.illustrator || '---';
-                modalText.innerHTML = data.text || '';
+                modalText.innerHTML = data.text || '（テキスト情報なし）';
 
                 modal.style.display = 'flex';
             })
