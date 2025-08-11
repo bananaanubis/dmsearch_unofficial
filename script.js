@@ -42,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ② 状態更新のための共通関数 ---
 
-    // コスト入力欄の有効/無効を切り替える関数
     const toggleCostInputs = () => {
         if (!costZeroCheck || !costInfinityCheck || !costMinInput || !costMaxInput) return;
         const disable = costZeroCheck.checked || costInfinityCheck.checked;
@@ -54,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // パワー入力欄の有効/無効を切り替える関数
     const togglePowerInputs = () => {
         if (!powInfinityCheck || !powMinInput || !powMaxInput) return;
         const disable = powInfinityCheck.checked;
@@ -66,7 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 文明コントロールの表示状態を更新する関数
     function updateCivilizationControls() {
         if (!multiColorBtn || mainCivButtons.length === 0) return;
         const isMultiOn = !multiColorBtn.classList.contains('is-off');
@@ -90,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ③ イベントリスナーの設定 ---
     
-    // 詳細検索エリアの表示/非表示を切り替えるイベント
     if (toggleAdvancedBtn && advancedSearchArea && advancedStateInput) {
         toggleAdvancedBtn.addEventListener('click', () => {
             const isOpen = advancedSearchArea.classList.contains('is-open');
@@ -100,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 商品の種類と商品名の連動イベント
     if (goodsTypeSelect && goodsSelect) {
         goodsTypeSelect.addEventListener('change', () => {
             const selectedGoodsTypeId = goodsTypeSelect.value;
@@ -118,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // コストなし/コスト無限チェックボックスの連動機能
     if (costZeroCheck && costInfinityCheck) {
         costZeroCheck.addEventListener('change', () => {
             if (costZeroCheck.checked) costInfinityCheck.checked = false;
@@ -130,12 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // パワー無限チェックボックスの連動機能
     if (powInfinityCheck) {
         powInfinityCheck.addEventListener('change', togglePowerInputs);
     }
 
-    // 文明ボタンのクリックイベント
     if (searchForm) {
         searchForm.addEventListener('click', (e) => {
             const button = e.target.closest('.civ-btn');
@@ -153,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // 並び替えが変更されたら、隠しフィールドを更新してフォームを送信
     if (sortOrderSelect && sortOrderHiddenInput && searchForm) {
         sortOrderSelect.addEventListener('change', () => {
             sortOrderHiddenInput.value = sortOrderSelect.value;
@@ -161,7 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // チェックボックス関連の関数とイベント
     const updateToggleButtonLabel = () => {
         if (!toggleBtn) return;
         const anyChecked = [...searchCheckboxes].some(cb => cb.checked);
@@ -175,26 +165,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
 
-    // リセットボタン
+    // ★★★ リセットボタンの処理を修正・強化 ★★★
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             // テキスト入力
             const searchInput = document.querySelector('input[name="search"]');
             if (searchInput) searchInput.value = "";
             
-            // 数値入力
+            // 数値入力欄（コスト、パワー、年）をリセット
             ['cost_min', 'cost_max', 'pow_min', 'pow_max', 'year_min', 'year_max'].forEach(name => {
                 const el = document.querySelector(`input[name="${name}"]`);
-                if(el) el.value = "";
+                if(el) {
+                    el.value = "";
+                    el.disabled = false; // disabled状態を明示的に解除
+                }
             });
 
-            // チェックボックス (コスト・パワー)
+            // チェックボックス (コスト・パワー) をすべてオフにする
             ['cost_zero', 'cost_infinity', 'pow_infinity'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.checked = false;
             });
 
-            // ドロップダウン (並び替え含む)
+            // ドロップダウン (並び替え含む) をデフォルト値に戻す
             document.querySelectorAll('select.styled-select').forEach(select => {
                 const defaultOption = select.querySelector('option[value="0"], option[value="all"], option[value="release_new"]');
                 if (defaultOption) {
@@ -226,12 +219,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     targetInput.value = '0';
                 }
             });
-
-            // ★★★ すべての状態更新関数を呼び出す ★★★
+            
+            // 全てのUI状態更新関数を呼び出して、表示を完全にリセットする
             updateToggleButtonLabel();
             updateCivilizationControls();
-            toggleCostInputs();
-            togglePowerInputs();
             
             // 商品リストをリセットするためにchangeイベントを発火
             if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
@@ -292,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalMana.textContent = data.mana || '---';
                 modalRace.textContent = data.race || '---';
                 modalIllustrator.textContent = data.illustrator || '---';
-                modalText.innerHTML = data.text || '（テキスト情報なし）';
+                modalText.innerHTML = data.text || '';
 
                 modal.style.display = 'flex';
             })
