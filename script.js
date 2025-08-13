@@ -266,6 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalRace = document.getElementById('modal-race');
         const modalIllustrator = document.getElementById('modal-illustrator');
         const modalText = document.getElementById('modal-text');
+        const modalFlavorSection = document.getElementById('modal-flavor-section');
+        const modalFlavortext = document.getElementById('modal-flavortext');
 
         cardGrid.addEventListener('click', (e) => {
             const cardImage = e.target.closest('.card-image-item');
