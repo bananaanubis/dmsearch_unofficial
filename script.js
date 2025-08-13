@@ -300,7 +300,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(modalMana) modalMana.textContent = data.mana || '---';
                     if(modalRace) modalRace.textContent = data.race || '---';
                     if(modalIllustrator) modalIllustrator.textContent = data.illustrator || '---';
-                    if(modalText) modalText.innerHTML = data.text || '（テキスト情報なし）';
+                    if(modalText) modalText.innerHTML = data.text || '';
+                    // フレーバーテキストの表示/非表示を制御
+                    if (data.flavortext && data.flavortext.trim() !== '') {
+                        modalFlavortext.innerHTML = data.flavortext;
+                        modalFlavorSection.style.display = 'block'; // セクションを表示
+                    } else {
+                        modalFlavorSection.style.display = 'none'; // セクションを非表示
+                    }
 
                     modal.style.display = 'flex';
                 })
