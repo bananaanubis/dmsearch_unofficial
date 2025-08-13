@@ -151,14 +151,12 @@ if ($is_submitted) {
 
 // === SQLクエリの組み立て ===
 $conditions = [];
-$params = []; // パラメータ配列を初期化
+$params = [];
 $joins = [];
 
 // --- Part 1: キーワード検索 ---
 if ($search !== '') {
     $keyword_conditions = [];
-    
-    // 各チェックボックスがONの場合にのみ、条件とパラメータをセットで追加する
     if ($search_name) { 
         $keyword_conditions[] = 'card.card_name LIKE :search_keyword_name'; 
         $params[':search_keyword_name'] = '%' . $search . '%';
@@ -187,8 +185,6 @@ if ($search !== '') {
         $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword_illus';
         $params[':search_keyword_illus'] = '%' . $search . '%';
     }
-    
-    // もし、キーワード検索の条件が一つでもあれば、ORで連結してWHERE句に追加する
     if (!empty($keyword_conditions)) {
         $conditions[] = '(' . implode(' OR ', $keyword_conditions) . ')';
     }
@@ -230,7 +226,7 @@ if ($year_max !== '' && is_numeric($year_max)) {
     $params[':date_max'] = $year_max . '-12-31';
 }
 
-// --- Part 3: JOINを使った各種IDによる絞り込み ---
+// --- Part 3-6 (各種ID絞り込みからマナ検索まで) ---
 if ($selected_char_id > 0) {
     $joins['card_cardtype_char'] = 'LEFT JOIN card_cardtype ON card.card_id = card_cardtype.card_id';
     $conditions[] = "card_cardtype.characteristics_id = :characteristics_id";
@@ -253,21 +249,16 @@ if ($selected_rarity_id > 0) {
 }
 if ($selected_soul_id != 0) {
     $joins['card_race_soul'] = 'LEFT JOIN card_race ON card.card_id = card_race.card_id';
-    if ($selected_soul_id == -1) {
-        $conditions[] = "card_race.soul_id IS NULL";
-    } else {
-        $conditions[] = "card_race.soul_id = :soul_id";
-        $params[':soul_id'] = $selected_soul_id;
-    }
+    if ($selected_soul_id == -1) { $conditions[] = "card_race.soul_id IS NULL"; }
+    else { $conditions[] = "card_race.soul_id = :soul_id"; $params[':soul_id'] = $selected_soul_id; }
 }
 if ($selected_frame_id > 0) {
     $conditions[] = "cd.frame_id = :frame_id";
     $params[':frame_id'] = $selected_frame_id;
 }
 if ($selected_ability_id != 0) {
-    if ($selected_ability_id == -1) {
-        $conditions[] = "(card.text IS NULL OR card.text = '')";
-    } else {
+    if ($selected_ability_id == -1) { $conditions[] = "(card.text IS NULL OR card.text = '')"; }
+    else {
         $joins['card_ability_ability'] = 'LEFT JOIN card_ability ON card.card_id = card_ability.card_id';
         $conditions[] = "card_ability.ability_id = :ability_id";
         $params[':ability_id'] = $selected_ability_id;
@@ -278,20 +269,14 @@ if ($selected_illus_id > 0) {
     $conditions[] = "card_illus.illus_id = :illus_id";
     $params[':illus_id'] = $selected_illus_id;
 }
-
-// --- Part 4: テーブルをまたぐ真偽値/ENUMによる絞り込み ---
 if ($selected_twinpact !== '0') {
     $conditions[] = "cd.twinpact = :twinpact";
     $params[':twinpact'] = ($selected_twinpact === '1') ? 1 : 0;
 }
 if ($selected_treasure_id != '0') {
     $joins['card_rarity_treasure'] = 'LEFT JOIN card_rarity ON card.card_id = card_rarity.card_id';
-    if ($selected_treasure_id == '-1') {
-        $conditions[] = "card_rarity.treasure_id IS NULL";
-    } else {
-        $conditions[] = "card_rarity.treasure_id = :treasure_id";
-        $params[':treasure_id'] = intval($selected_treasure_id);
-    }
+    if ($selected_treasure_id == '-1') { $conditions[] = "card_rarity.treasure_id IS NULL"; }
+    else { $conditions[] = "card_rarity.treasure_id = :treasure_id"; $params[':treasure_id'] = intval($selected_treasure_id); }
 }
 if ($selected_regulation !== '0') {
     $regulation_map = ['1' => '制限なし', '2' => '殿堂', '3' => 'プレミアム殿堂'];
@@ -305,8 +290,6 @@ if ($selected_secret !== '0') {
     $conditions[] = "card_rarity.secret = :secret";
     $params[':secret'] = ($selected_secret === '1') ? 1 : 0;
 }
-
-// --- Part 5: 収録商品検索 ---
 if ($selected_goods_id > 0) {
     $conditions[] = "cd.goods_id = :goods_id";
     $params[':goods_id'] = $selected_goods_id;
@@ -316,18 +299,12 @@ if ($selected_goodstype_id > 0) {
     $conditions[] = "goods.goodstype_id = :goodstype_id";
     $params[':goodstype_id'] = $selected_goodstype_id;
 }
-
-// --- Part 6: マナ検索 ---
 if ($selected_mana !== 'all') {
-    if ($selected_mana === '-1') {
-        $conditions[] = "cd.mana IS NULL";
-    } else {
-        $conditions[] = "cd.mana = :mana";
-        $params[':mana'] = intval($selected_mana);
-    }
+    if ($selected_mana === '-1') { $conditions[] = "cd.mana IS NULL"; }
+    else { $conditions[] = "cd.mana = :mana"; $params[':mana'] = intval($selected_mana); }
 }
 
-// --- Part 7: 文明検索 (プレースホルダーを使わないので、そのままでOK) ---
+// --- Part 7: 文明検索 ---
 $civ_summary_subquery = "(SELECT card_id, COUNT(civilization_id) as civ_count FROM card_civilization GROUP BY card_id)";
 $civ_type_conditions = [];
 if (!$cost_zero && !$cost_infinity) {
@@ -354,14 +331,13 @@ $join_str = !empty($joins) ? implode(' ', array_unique($joins)) : '';
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
 // --- 総件数取得 ---
-$count_sql = "SELECT COUNT(DISTINCT card.card_id) FROM card JOIN card_detail cd ON card.card_id = cd.card_id {$join_str} {$where}";
+$count_sql = "SELECT COUNT(DISTINCT cd.modelnum) FROM card JOIN card_detail cd ON card.card_id = cd.card_id {$join_str} {$where}";
 $stmt = $pdo->prepare($count_sql);
 $stmt->execute($params);
 $total = $stmt->fetchColumn();
 
 
-// --- カード情報取得 ---
-// ORDER BY句を動的に生成
+// --- カード情報取得 (MySQL 5.6互換バージョン) ---
 $order_by_clause = '';
 switch ($selected_sort) {
     case 'release_old': $order_by_clause = 'ORDER BY representative.release_date ASC, representative.card_id ASC'; break;
@@ -385,27 +361,21 @@ $sql = "
         civ_summary.civ_ids
     FROM (
         SELECT
-            c.card_id,
-            c.reading,
-            c.cost,
-            c.pow,
-            cd.modelnum,
-            cd.release_date
+            c.card_id, c.reading, c.cost, c.pow,
+            cd.modelnum, cd.release_date
         FROM card c
         JOIN card_detail cd ON c.card_id = cd.card_id
         JOIN (
-            SELECT MIN(sub_cd.card_id) as representative_card_id
-            FROM card_detail sub_cd
-            JOIN card sub_c ON sub_cd.card_id = sub_c.card_id
+            SELECT MIN(sub_c.card_id) as representative_card_id
+            FROM card sub_c
+            JOIN card_detail sub_cd ON sub_c.card_id = sub_cd.card_id
             {$join_str}
             {$where}
             GROUP BY sub_cd.modelnum
         ) AS representative_ids ON c.card_id = representative_ids.representative_card_id
     ) AS representative
     LEFT JOIN (
-        SELECT
-            card_id,
-            GROUP_CONCAT(DISTINCT civilization_id ORDER BY civilization_id ASC SEPARATOR '') AS civ_ids
+        SELECT card_id, GROUP_CONCAT(DISTINCT civilization_id ORDER BY civilization_id ASC SEPARATOR '') AS civ_ids
         FROM card_civilization
         GROUP BY card_id
     ) AS civ_summary ON representative.card_id = civ_summary.card_id
@@ -416,17 +386,15 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+
 // --- カード画像のパスを事前に処理する ---
 foreach ($cards as $key => $card) {
     $image_path = "card/" . $card['modelnum'] . ".webp";
     $folder_path = "card/" . $card['modelnum'];
     
-    // modelnumに対応する画像ファイルが存在しないか、またはそれがフォルダである場合
-    if (!file_exists($image_path) || is_dir($folder_path)) {
-        // フォルダ内の '(modelnum)a.webp' を指すようにパスを修正
+    if ($card['modelnum'] && (!file_exists($image_path) || is_dir($folder_path))) {
         $cards[$key]['image_url'] = $folder_path . "/" . $card['modelnum'] . "a.webp";
     } else {
-        // 通常のカードの場合は、そのままのパス
         $cards[$key]['image_url'] = $image_path;
     }
 }
