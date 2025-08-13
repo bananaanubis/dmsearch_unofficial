@@ -118,30 +118,43 @@ $conditions = [];
 $params = [];
 $joins = [];
 
-// --- Part 1: キーワード検索 (変更なし) ---
+// --- Part 1: キーワード検索 ---
 if ($search !== '') {
     $keyword_conditions = [];
-    $params[':search_keyword'] = '%' . $search . '%';
-
-    if ($search_name) { $keyword_conditions[] = 'card.card_name LIKE :search_keyword'; }
-    if ($search_reading) { $keyword_conditions[] = 'card.reading LIKE :search_keyword'; }
-    if ($search_text) { $keyword_conditions[] = 'card.text LIKE :search_keyword'; }
-    if ($search_flavortext) { $keyword_conditions[] = 'card.flavortext LIKE :search_keyword'; }
+    
+    // 各チェックボックスがONの場合にのみ、条件とパラメータをセットで追加する
+    if ($search_name) { 
+        $keyword_conditions[] = 'card.card_name LIKE :search_keyword_name'; 
+        $params[':search_keyword_name'] = '%' . $search . '%';
+    }
+    if ($search_reading) { 
+        $keyword_conditions[] = 'card.reading LIKE :search_keyword_reading';
+        $params[':search_keyword_reading'] = '%' . $search . '%';
+    }
+    if ($search_text) {
+        $keyword_conditions[] = 'card.text LIKE :search_keyword_text';
+        $params[':search_keyword_text'] = '%' . $search . '%';
+    }
+    if ($search_flavortext) {
+        $keyword_conditions[] = 'card.flavortext LIKE :search_keyword_flavor';
+        $params[':search_keyword_flavor'] = '%' . $search . '%';
+    }
     if ($search_race) {
         $joins['card_race'] = 'LEFT JOIN card_race ON card.card_id = card_race.card_id';
         $joins['race'] = 'LEFT JOIN race ON card_race.race_id = race.race_id';
-        $keyword_conditions[] = 'race.race_name LIKE :search_keyword';
+        $keyword_conditions[] = 'race.race_name LIKE :search_keyword_race';
+        $params[':search_keyword_race'] = '%' . $search . '%';
     }
     if ($search_illus) {
         $joins['card_illus_search'] = 'LEFT JOIN card_illus ON card.card_id = card_illus.card_id';
         $joins['illus_search'] = 'LEFT JOIN illus ON card_illus.illus_id = illus.illus_id';
-        $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword';
+        $keyword_conditions[] = 'illus.illus_name LIKE :search_keyword_illus';
+        $params[':search_keyword_illus'] = '%' . $search . '%';
     }
     
+    // もし、キーワード検索の条件が一つでもあれば、ORで連結してWHERE句に追加する
     if (!empty($keyword_conditions)) {
         $conditions[] = '(' . implode(' OR ', $keyword_conditions) . ')';
-    } else {
-        unset($params[':search_keyword']);
     }
 }
 
