@@ -93,13 +93,11 @@
             <label class="search-label left-align-label">コスト</label>
             <div class="search-group center-content">
                 <div class="num-range-container">
-                    <!-- ▼▼▼ 入力欄にIDを追加 ▼▼▼ -->
                     <input type="number" name="cost_min" id="cost_min_input" class="rangenum-input" placeholder="下限" value="<?= htmlspecialchars($cost_min) ?>">
                     <span>～</span>
                     <input type="number" name="cost_max" id="cost_max_input" class="rangenum-input" placeholder="上限" value="<?= htmlspecialchars($cost_max) ?>">
                 </div>
             </div>
-            <!-- ▼▼▼ この行を追加 ▼▼▼ -->
             <div class="search-group">
                 <label class="checkbox-label-inline ">
                     <input type="checkbox" name="cost_zero" id="cost_zero_check" value="1" <?= $cost_zero ? 'checked' : '' ?>>
@@ -110,7 +108,6 @@
                     コスト無限
                 </label>
             </div>
-            <!-- ▲▲▲ ここまで追加 ▲▲▲ -->
         </div>      
         <div class="search-group-container">
             <label class="search-label left-align-label">パワー</label>
@@ -142,7 +139,7 @@
         <!-- 特殊タイプ & カードタイプ検索エリア -->
         <div class="search-group-container">
 
-            <!-- 1行目のグループ (特殊タイプ, カードタイプ, 種族) -->
+            <!-- 1行目のグループ (特殊タイプ, カードタイプ, ツインパクト) -->
             <div class="search-group">
                 <div class="select-group">
                     <label class="search-label">特殊タイプ</label>
@@ -176,7 +173,7 @@
                 </div>
             </div>
 
-            <!-- 2行目のグループ (レアリティのみ) -->
+            <!-- 2行目のグループ (レアリティ, トレジャー, シークレット) -->
             <div class="search-group">
                 <div class="select-group">
                     <label class="search-label">レアリティ</label>
@@ -210,6 +207,7 @@
                     </select>
                 </div>
             </div>
+            <!-- 3行目のグループ (種族, 特殊能力) -->
             <div class="search-group">
                 <div class="select-group">
                     <label class="search-label">種族</label>
@@ -235,6 +233,7 @@
                     </select>
                 </div>
             </div>
+            <!-- 4行目のグループ (商品名, 商品の種類) -->
             <div class="search-group">
                 <div class="select-group">
                     <label class="search-label">商品名</label>
@@ -259,6 +258,7 @@
                     </select>
                 </div>
             </div>
+            <!-- 5行目のグループ (制限, ソウル, 枠, マナ) -->
             <div class="search-group">
                 <div class="select-group">
                     <label class="search-label">制限</label>
@@ -292,18 +292,17 @@
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="search-group center-content">
-                    <div class="select-group">
-                        <label class="search-label">マナ</label>
-                        <select name="mana_filter" class="styled-select">
-                            <option value="all" <?= ($selected_mana == 'all') ? 'selected' : '' ?>>指定なし</option>
-                            <option value="1" <?= ($selected_mana == '1') ? 'selected' : '' ?>>1</option>
-                            <option value="0" <?= ($selected_mana == '0') ? 'selected' : '' ?>>0</option>
-                            <option value="-1" <?= ($selected_mana == '-1') ? 'selected' : '' ?>>なし</option>
-                        </select>
-                    </div>
+                <div class="select-group">
+                    <label class="search-label">マナ</label>
+                    <select name="mana_filter" class="styled-select">
+                        <option value="all" <?= ($selected_mana == 'all') ? 'selected' : '' ?>>指定なし</option>
+                        <option value="1" <?= ($selected_mana == '1') ? 'selected' : '' ?>>1</option>
+                        <option value="0" <?= ($selected_mana == '0') ? 'selected' : '' ?>>0</option>
+                        <option value="-1" <?= ($selected_mana == '-1') ? 'selected' : '' ?>>なし</option>
+                    </select>
                 </div>
             </div>
+             <!-- 6行目のグループ (イラストレーター) -->
             <div class="search-group">
                 <div class="select-group">
                     <label class="search-label">イラストレーター</label>
@@ -328,7 +327,7 @@
     <input type="hidden" id="sort-order-hidden" name="sort_order" value="<?= htmlspecialchars($selected_sort) ?>">
     <div class="sort-container">
         <label for="sort-order" class="sort-label">ならびかえ</label>
-        <select id="sort-order" class="styled-select sort-select"> <!-- ★ name属性を削除 -->
+        <select id="sort-order" class="styled-select sort-select">
             <option value="release_new" <?= ($selected_sort == 'release_new') ? 'selected' : '' ?>>発売日の新しい順</option>
             <option value="release_old" <?= ($selected_sort == 'release_old') ? 'selected' : '' ?>>発売日の古い順</option>
             <option value="name_asc" <?= ($selected_sort == 'name_asc') ? 'selected' : '' ?>>カード名の昇順</option>
@@ -348,7 +347,7 @@
     <div class="card-grid">
         <?php foreach ($cards as $card): ?>
             <div class="card">
-                <img src="card/<?= htmlspecialchars($card['modelnum']) ?>.webp" alt="カード画像" class="card-image-item" data-card-id="<?= $card['card_id'] ?>">
+                <img src="<?= htmlspecialchars($card['image_url']) ?>" alt="カード画像" class="card-image-item" data-card-id="<?= $card['card_id'] ?>">
             </div>
         <?php endforeach; ?>
     </div>
@@ -407,57 +406,57 @@
             <h3 id="modal-card-name">カード名</h3>
             <span id="modal-close-btn" class="close-btn">×</span>
         </div>
+        <div id="modal-cards-container" class="modal-body-scrollable">
+            <!-- ここにJavaScriptでカード情報が挿入される -->
+        </div>
+    </div>
+</div>
+
+<template id="modal-card-template">
+    <div class="modal-card-instance">
         <div class="modal-body">
             <div class="modal-left">
-                <img id="modal-card-image" src="" alt="カード画像">
+                <img class="modal-card-image" src="" alt="カード画像">
             </div>
             <div class="modal-right">
                 <table class="detail-table">
                     <tbody>
                         <tr>
-                            <th>カードの種類</th>
-                            <td id="modal-card-type"></td>
-                            <th>文明</th>
-                            <td id="modal-civilization"></td>
+                            <th>カードの種類</th><td class="modal-card-type"></td>
+                            <th>文明</th><td class="modal-civilization"></td>
                         </tr>
                         <tr>
-                            <th>レアリティ</th>
-                            <td id="modal-rarity"></td>
-                            <th>パワー</th>
-                            <td id="modal-power"></td>
+                            <th>レアリティ</th><td class="modal-rarity"></td>
+                            <th>パワー</th><td class="modal-power"></td>
                         </tr>
                         <tr>
-                            <th>コスト</th>
-                            <td id="modal-cost"></td>
-                            <th>マナ</th>
-                            <td id="modal-mana">1</td>
+                            <th>コスト</th><td class="modal-cost"></td>
+                            <th>マナ</th><td class="modal-mana"></td>
                         </tr>
                         <tr>
-                            <th>種族</th>
-                            <td id="modal-race" colspan="3"></td>
+                            <th>種族</th><td class="modal-race" colspan="3"></td>
                         </tr>
                     </tbody>
                 </table>                
                 <table class="detail-table">
                     <tbody>
                         <tr>
-                            <th>イラストレーター</th><td id="modal-illustrator"></td>
+                            <th>イラストレーター</th><td class="modal-illustrator"></td>
                         </tr>
                     </tbody>
                 </table>
-
-                <div class="ability-section">
+                <div class="modal-ability-section ability-section" style="display: none;">
                     <h4>特殊能力</h4>
-                    <div id="modal-text" class="ability-text"></div>
+                    <div class="modal-text ability-text"></div>
                 </div>
-                <div id="modal-flavor-section" class="ability-section" style="display: none;">
+                <div class="modal-flavor-section ability-section" style="display: none;">
                     <h4>フレーバーテキスト</h4>
-                    <div id="modal-flavortext" class="ability-text"></div>
+                    <div class="modal-flavortext ability-text"></div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</template>
 
 <script src="script.js"></script>
 </body>
