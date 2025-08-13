@@ -364,32 +364,51 @@ $total = $stmt->fetchColumn();
 // ORDER BY句を動的に生成
 $order_by_clause = '';
 switch ($selected_sort) {
-    case 'release_old': $order_by_clause = 'ORDER BY cd.release_date ASC, card.card_id ASC'; break;
-    case 'cost_desc': $order_by_clause = 'ORDER BY card.cost DESC, civ_ids ASC, card.card_id ASC'; break;
-    case 'cost_asc': $order_by_clause = 'ORDER BY card.cost ASC, civ_ids ASC, card.card_id ASC'; break;
-    case 'name_asc': $order_by_clause = 'ORDER BY card.reading ASC, card.card_id ASC'; break;
-    case 'name_desc': $order_by_clause = 'ORDER BY card.reading DESC, card.card_id DESC'; break;
-    case 'power_desc': $order_by_clause = 'ORDER BY card.pow DESC, civ_ids ASC, card.card_id ASC'; break;
-    case 'power_asc': $order_by_clause = 'ORDER BY card.pow ASC, civ_ids ASC, card.card_id ASC'; break;
-    default: $order_by_clause = 'ORDER BY cd.release_date DESC, card.card_id ASC'; break;
+    case 'release_old': $order_by_clause = 'ORDER BY representative.release_date ASC, representative.card_id ASC'; break;
+    case 'cost_desc': $order_by_clause = 'ORDER BY representative.cost DESC, civ_ids ASC, representative.card_id ASC'; break;
+    case 'cost_asc': $order_by_clause = 'ORDER BY representative.cost ASC, civ_ids ASC, representative.card_id ASC'; break;
+    case 'name_asc': $order_by_clause = 'ORDER BY representative.reading ASC, representative.card_id ASC'; break;
+    case 'name_desc': $order_by_clause = 'ORDER BY representative.reading DESC, representative.card_id DESC'; break;
+    case 'power_desc': $order_by_clause = 'ORDER BY representative.pow DESC, civ_ids ASC, representative.card_id ASC'; break;
+    case 'power_asc': $order_by_clause = 'ORDER BY representative.pow ASC, civ_ids ASC, representative.card_id ASC'; break;
+    default: $order_by_clause = 'ORDER BY representative.release_date DESC, representative.card_id ASC'; break;
 }
 
-// 最終的なSQL
 $sql = "
     SELECT
-        ANY_VALUE(card.card_id) AS card_id,
-        ANY_VALUE(card.reading) AS reading,
-        ANY_VALUE(card.cost) AS cost,
-        ANY_VALUE(card.pow) AS pow,
-        cd.modelnum,
-        ANY_VALUE(cd.release_date) AS release_date,
-        GROUP_CONCAT(DISTINCT cc.civilization_id ORDER BY cc.civilization_id ASC SEPARATOR '') AS civ_ids
-    FROM card
-    JOIN card_detail cd ON card.card_id = cd.card_id
-    LEFT JOIN card_civilization cc ON card.card_id = cc.card_id
-    {$join_str}
-    {$where}
-    GROUP BY cd.modelnum
+        representative.card_id,
+        representative.reading,
+        representative.cost,
+        representative.pow,
+        representative.modelnum,
+        representative.release_date,
+        civ_summary.civ_ids
+    FROM (
+        SELECT
+            c.card_id,
+            c.reading,
+            c.cost,
+            c.pow,
+            cd.modelnum,
+            cd.release_date
+        FROM card c
+        JOIN card_detail cd ON c.card_id = cd.card_id
+        JOIN (
+            SELECT MIN(sub_cd.card_id) as representative_card_id
+            FROM card_detail sub_cd
+            JOIN card sub_c ON sub_cd.card_id = sub_c.card_id
+            {$join_str}
+            {$where}
+            GROUP BY sub_cd.modelnum
+        ) AS representative_ids ON c.card_id = representative_ids.representative_card_id
+    ) AS representative
+    LEFT JOIN (
+        SELECT
+            card_id,
+            GROUP_CONCAT(DISTINCT civilization_id ORDER BY civilization_id ASC SEPARATOR '') AS civ_ids
+        FROM card_civilization
+        GROUP BY card_id
+    ) AS civ_summary ON representative.card_id = civ_summary.card_id
     {$order_by_clause}
     LIMIT $perPage OFFSET $offset
 ";
