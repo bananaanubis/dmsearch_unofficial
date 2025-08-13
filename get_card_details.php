@@ -85,7 +85,7 @@ $response['illustrator'] = !empty($illustrators) ? implode(' / ', $illustrators)
  
  
 // --- 特殊能力テキスト (ご提示いただいた正しいロジックをそのまま使用) ---
-$response['text'] = '（テキスト情報なし）';
+$response['text'] = '';
 if ($modelnum) {
     $text_file_path = 'text/' . $modelnum . '.txt';
     if (file_exists($text_file_path)) {
@@ -117,6 +117,20 @@ if ($modelnum) {
         $final_text = str_replace(array_keys($final_replacements), array_values($final_replacements), $formatted_text);
        
         $response['text'] = $final_text;
+    }
+}
+// --- フレーバーテキストの読み込み ---
+$response['flavortext'] = null; // まずは空で初期化
+if ($modelnum) { // modelnumが取得できている場合のみ実行
+    $flavor_file_path = "flavortext/" . $modelnum . ".txt"; // ファイルパスを生成
+
+    if (file_exists($flavor_file_path)) {
+        // ファイルが存在すれば、中身を読み込む
+        $raw_flavor_text = file_get_contents($flavor_file_path);
+        if ($raw_flavor_text !== false && !empty(trim($raw_flavor_text))) {
+            // セキュリティ対策（HTMLタグを無効化）し、改行を<br>タグに変換する
+            $response['flavortext'] = nl2br(htmlspecialchars(trim($raw_flavor_text)));
+        }
     }
 }
  
