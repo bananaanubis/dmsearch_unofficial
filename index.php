@@ -376,13 +376,13 @@ switch ($selected_sort) {
 
 // 最終的なSQL
 $sql = "
-    SELECT 
-        card.card_id, 
-        card.reading,
-        card.cost,
-        card.pow,
+    SELECT
+        ANY_VALUE(card.card_id) AS card_id,
+        ANY_VALUE(card.reading) AS reading,
+        ANY_VALUE(card.cost) AS cost,
+        ANY_VALUE(card.pow) AS pow,
         cd.modelnum,
-        cd.release_date,
+        ANY_VALUE(cd.release_date) AS release_date,
         GROUP_CONCAT(DISTINCT cc.civilization_id ORDER BY cc.civilization_id ASC SEPARATOR '') AS civ_ids
     FROM card
     JOIN card_detail cd ON card.card_id = cd.card_id
