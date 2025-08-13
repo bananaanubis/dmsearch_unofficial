@@ -21,8 +21,7 @@ try {
     ];
     $pdo = new PDO($dsn, $db_user, $db_pass, $options);
 } catch (PDOException $e) {
-    // APIの場合はJSONでエラーを返すなどの処理も可能
     http_response_code(500);
-    die("DATABASE CONNECTION FAILED: " . $e->getMessage());
+    die("DATABASE CONNECTION FAILED: ". $e->getMessage());
 }
 ?>
