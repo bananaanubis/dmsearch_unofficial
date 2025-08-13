@@ -1,7 +1,6 @@
 <?php
 header('Content-Type: application/json');
 require_once 'db_connect.php';
-
 $type = isset($_GET['type']) ? $_GET['type'] : '';
 $query = isset($_GET['query']) ? trim($_GET['query']) : '';
 
