@@ -2,12 +2,45 @@
 header('Content-Type: application/json');
 require_once 'db_connect.php';
 
-// ★★★ すべてのヘルパー関数を、ファイルの最初に一度だけ定義する ★★★
-function process_text_from_file($modelnum, $file_type) {
+// ★★★ すべてのテキスト処理を、この一つの関数に統合する ★★★
+function format_text_for_display($raw_text, $is_ability) {
+    if (!$raw_text || trim($raw_text) === '') {
+        return $is_ability ? '（テキスト情報なし）' : null;
+    }
+    
+    $lines = explode("\n", $raw_text);
+    $processed_lines = [];
+    foreach ($lines as $line) {
+        $trimmed_line = trim($line);
+        if (empty($trimmed_line)) continue;
+        
+        $escaped_line = htmlspecialchars($trimmed_line);
+        
+        if ($is_ability) {
+            // 能力テキストの場合の処理
+            $startsWithIcon = str_starts_with($trimmed_line, '{st}') || str_starts_with($trimmed_line, '{br}');
+            
+            $replacements = [
+                '{br}' => '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
+                '{st}' => '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
+            ];
+            $formatted_line = str_replace(array_keys($replacements), array_values($replacements), $escaped_line);
+            
+            $processed_lines[] = $startsWithIcon ? $formatted_line : '■ ' . $formatted_line;
+        } else {
+            // フレーバーテキストの場合の処理
+            $processed_lines[] = $escaped_line;
+        }
+    }
+    
+    $final_text = implode('<br>', $processed_lines);
+    return $is_ability ? $final_text : nl2br($final_text); // フレーバーはnl2brも適用
+}
+
+function process_files_from_folder($modelnum, $file_type) {
     if (!$modelnum) return [];
     $folder_path = $file_type . "/" . $modelnum;
     if (!is_dir($folder_path)) return [];
-
     $parts = [];
     foreach (range('a', 'z') as $char) {
         $file_path = $folder_path . "/" . $modelnum . $char . ".txt";
@@ -20,47 +53,7 @@ function process_text_from_file($modelnum, $file_type) {
     }
     return $parts;
 }
-function format_ability_text($raw_text) {
-    if (!$raw_text || trim($raw_text) === '') return '（テキスト情報なし）';
-    
-    $lines = explode("\n", $raw_text);
-    $processed_lines = [];
-    foreach ($lines as $line) {
-        $trimmed_line = trim($line);
-        if (empty($trimmed_line)) continue;
-        
-        $line_to_process = $trimmed_line; // 処理前の行を保持
-
-        // ★★★ここからが新しいロジック★★★
-        // まず、行頭にアイコンがあるかチェックする
-        $startsWithIcon = false;
-        if (str_starts_with($line_to_process, '{st}') || str_starts_with($line_to_process, '{br}')) {
-            $startsWithIcon = true;
-        }
-        // ★★★ここまでが新しいロジック★★★
-
-        $escaped_line = htmlspecialchars($line_to_process);
-        
-        // アイコン置換
-        $replacements = [
-            '{br}' => '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
-            '{st}' => '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
-        ];
-        $formatted_line = str_replace(array_keys($replacements), array_values($replacements), $escaped_line);
-        
-        // ★★★ここからが新しいロジック★★★
-        // アイコンで始まらない行にだけ、■ を付ける
-        if ($startsWithIcon) {
-            $processed_lines[] = $formatted_line;
-        } else {
-            $processed_lines[] = '■ ' . $formatted_line;
-        }
-        // ★★★ここまでが新しいロジック★★★
-    }
-    return implode('<br>', $processed_lines);
-}
 // ★★★ ヘルパー関数の定義はここまで ★★★
-
 
 $card_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($card_id === 0) {
@@ -86,8 +79,8 @@ if ($set_info) {
 
     if (!empty($response['cards'])) {
         $modelnum = $response['cards'][0]['modelnum'] ?? null;
-        $response['texts'] = process_text_from_file($modelnum, 'text');
-        $response['flavortexts'] = process_text_from_file($modelnum, 'flavortext');
+        $response['texts'] = process_files_from_folder($modelnum, 'text');
+        $response['flavortexts'] = process_files_from_folder($modelnum, 'flavortext');
         
         $image_urls = [];
         if ($modelnum) {
@@ -114,11 +107,12 @@ if ($set_info) {
     $response['cards'] = [$card_data];
 }
 
-// --- 各カードの共通詳細情報（種族、文明など）をループで取得・追加 ---
-foreach ($response['cards'] as &$card) { // 参照渡し(&)を使う
+// --- 各カードの共通詳細情報と、通常カードのテキストを処理 ---
+foreach ($response['cards'] as &$card) {
     $current_card_id = $card['card_id'];
+    $modelnum = $card['modelnum'] ?? null;
     
-    // カードの種類
+    // (中略: 種族、文明などの取得ロジックは変更なし)
     $stmt = $pdo->prepare("SELECT t.cardtype_name, c.characteristics_name, cc.characteristics_id FROM card_cardtype cc JOIN cardtype t ON cc.cardtype_id = t.cardtype_id LEFT JOIN characteristics c ON cc.characteristics_id = c.characteristics_id WHERE cc.card_id = ?");
     $stmt->execute([$current_card_id]);
     $type_info = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -126,48 +120,38 @@ foreach ($response['cards'] as &$card) { // 参照渡し(&)を使う
     if ($type_info && $type_info['characteristics_id'] != 1 && !empty($type_info['characteristics_name'])) { $type_parts[] = $type_info['characteristics_name']; }
     if ($type_info && !empty($type_info['cardtype_name'])) { $type_parts[] = $type_info['cardtype_name']; }
     $card['card_type'] = !empty($type_parts) ? implode('', $type_parts) : '---';
-
-    // 文明
     $stmt = $pdo->prepare("SELECT c.civilization_name FROM card_civilization cc JOIN civilization c ON cc.civilization_id = c.civilization_id WHERE cc.card_id = ?");
     $stmt->execute([$current_card_id]);
     $card['civilization'] = implode(' / ', $stmt->fetchAll(PDO::FETCH_COLUMN)) ?: '---';
-
-    // レアリティ
     $stmt = $pdo->prepare("SELECT r.rarity_name FROM card_rarity cr JOIN rarity r ON cr.rarity_id = r.rarity_id WHERE cr.card_id = ? LIMIT 1");
     $stmt->execute([$current_card_id]);
     $card['rarity'] = $stmt->fetchColumn() ?: '---';
-    
-    // 種族
     $stmt = $pdo->prepare("SELECT r.race_name FROM card_race cr JOIN race r ON cr.race_id = r.race_id WHERE cr.card_id = ?");
     $stmt->execute([$current_card_id]);
     $card['race'] = implode(' / ', $stmt->fetchAll(PDO::FETCH_COLUMN)) ?: '---';
-    
-    // イラストレーター
     $stmt = $pdo->prepare("SELECT i.illus_name FROM card_illus ci JOIN illus i ON ci.illus_id = i.illus_id WHERE ci.card_id = ?");
     $stmt->execute([$current_card_id]);
     $card['illustrator'] = implode(' / ', $stmt->fetchAll(PDO::FETCH_COLUMN)) ?: '---';
 
-    // ★★★ 通常カードの場合のみ、テキストとフレーバーをここでフォーマット ★★★
+
+    // 通常カードの場合のみ、テキストとフレーバーをここでフォーマット
     if (!$response['is_set']) {
-        // 能力テキスト
-        $modelnum = $card['modelnum'] ?? null;
+        $text_from_file = null;
         $single_text_file = $modelnum ? "text/" . $modelnum . ".txt" : null;
         if ($single_text_file && file_exists($single_text_file)) {
-            $card['text'] = format_ability_text(file_get_contents($single_text_file));
-        } else {
-            $card['text'] = format_ability_text($card['text'] ?? '');
+            $text_from_file = file_get_contents($single_text_file);
         }
+        $card['text'] = format_text_for_display($text_from_file ?: ($card['text'] ?? ''), true);
 
-        // フレーバーテキスト
+        $flavor_from_file = null;
         $single_flavor_file = $modelnum ? "flavortext/" . $modelnum . ".txt" : null;
         if ($single_flavor_file && file_exists($single_flavor_file)) {
-            $card['flavortext'] = format_flavor_text(file_get_contents($single_flavor_file));
-        } else {
-             $card['flavortext'] = format_flavor_text($card['flavortext'] ?? '');
+            $flavor_from_file = file_get_contents($single_flavor_file);
         }
+        $card['flavortext'] = format_text_for_display($flavor_from_file ?: ($card['flavortext'] ?? ''), false);
     }
 }
-unset($card); // ループ後の参照を解除
+unset($card);
 
 echo json_encode($response);
 ?>
