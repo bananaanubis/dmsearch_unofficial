@@ -22,24 +22,42 @@ function process_text_from_file($modelnum, $file_type) {
 }
 function format_ability_text($raw_text) {
     if (!$raw_text || trim($raw_text) === '') return '（テキスト情報なし）';
+    
     $lines = explode("\n", $raw_text);
     $processed_lines = [];
     foreach ($lines as $line) {
         $trimmed_line = trim($line);
         if (empty($trimmed_line)) continue;
-        $escaped_line = htmlspecialchars($trimmed_line);
+        
+        $line_to_process = $trimmed_line; // 処理前の行を保持
+
+        // ★★★ここからが新しいロジック★★★
+        // まず、行頭にアイコンがあるかチェックする
+        $startsWithIcon = false;
+        if (str_starts_with($line_to_process, '{st}') || str_starts_with($line_to_process, '{br}')) {
+            $startsWithIcon = true;
+        }
+        // ★★★ここまでが新しいロジック★★★
+
+        $escaped_line = htmlspecialchars($line_to_process);
+        
+        // アイコン置換
         $replacements = [
-            '{br}' => '<img src="parts/card_list_block.webp" class="text-icon">',
-            '{st}' => '<img src="parts/card_list_strigger.webp" class="text-icon">',
+            '{br}' => '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
+            '{st}' => '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
         ];
-        $escaped_line = str_replace(array_keys($replacements), array_values($replacements), $escaped_line);
-        $processed_lines[] = '■ ' . $escaped_line;
+        $formatted_line = str_replace(array_keys($replacements), array_values($replacements), $escaped_line);
+        
+        // ★★★ここからが新しいロジック★★★
+        // アイコンで始まらない行にだけ、■ を付ける
+        if ($startsWithIcon) {
+            $processed_lines[] = $formatted_line;
+        } else {
+            $processed_lines[] = '■ ' . $formatted_line;
+        }
+        // ★★★ここまでが新しいロジック★★★
     }
     return implode('<br>', $processed_lines);
-}
-function format_flavor_text($raw_text) {
-    if (!$raw_text || trim($raw_text) === '') return null;
-    return nl2br(htmlspecialchars(trim($raw_text)));
 }
 // ★★★ ヘルパー関数の定義はここまで ★★★
 
