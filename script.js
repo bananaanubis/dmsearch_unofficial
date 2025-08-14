@@ -123,11 +123,57 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
 
-    // --- ④ リセットボタンのイベントリスナー (安定版) ---
+    // --- ④ リセットボタンのイベントリスナー (実績のある安定版ロジック) ---
     function resetSearch() {
-        if (searchForm) searchForm.reset(); // 標準機能でリセット
-        
-        // .reset()で戻らない部分を手動で修正
+        // テキスト入力
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) searchInput.value = "";
+
+        // コスト
+        if (costMinInput) costMinInput.value = "";
+        if (costMaxInput) costMaxInput.value = "";
+        if (costZeroCheck) costZeroCheck.checked = false;
+        if (costInfinityCheck) costInfinityCheck.checked = false;
+        if (costMinInput) costMinInput.disabled = false;
+        if (costMaxInput) costMaxInput.disabled = false;
+
+        // パワー
+        if (powMinInput) powMinInput.value = "";
+        if (powMaxInput) powMaxInput.value = "";
+        if (powInfinityCheck) powInfinityCheck.checked = false;
+        if (powMinInput) powMinInput.disabled = false;
+        if (powMaxInput) powMaxInput.disabled = false;
+
+        // ドロップダウン (HTMLの初期値に戻す)
+        document.querySelectorAll('select.styled-select').forEach(select => {
+             const name = select.name;
+             if (name === 'mana_filter') select.value = 'all';
+             else if (select.id === 'sort-order') select.value = 'release_new';
+             else select.value = '0';
+        });
+        if(sortOrderHiddenInput) sortOrderHiddenInput.value = 'release_new';
+
+        // ★★★ 商品名リストの連動機能を、ここでトリガーする ★★★
+        if (goodsTypeSelect) {
+            goodsTypeSelect.dispatchEvent(new Event('change'));
+        }
+
+        // 検索対象チェックボックス
+        const searchName = document.querySelector('input[name="search_name"]');
+        const searchReading = document.querySelector('input[name="search_reading"]');
+        const searchText = document.querySelector('input[name="search_text"]');
+        const searchRace = document.querySelector('input[name="search_race"]');
+        const searchFlavortext = document.querySelector('input[name="search_flavortext"]');
+        const searchIllus = document.querySelector('input[name="search_illus"]');
+        if (searchName) searchName.checked = true;
+        if (searchReading) searchReading.checked = true;
+        if (searchText) searchText.checked = true;
+        if (searchRace) searchRace.checked = false;
+        if (searchFlavortext) searchFlavortext.checked = false;
+        if (searchIllus) searchIllus.checked = false;
+        updateToggleButtonLabel();
+
+        // 文明ボタン
         document.querySelectorAll('.civ-btn').forEach(button => {
             const targetInput = document.getElementById(button.dataset.targetInput);
             const buttonId = button.dataset.targetInput;
@@ -140,23 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 検索対象チェックボックスを初期状態に戻す
-        const searchName = document.querySelector('input[name="search_name"]');
-        const searchReading = document.querySelector('input[name="search_reading"]');
-        const searchText = document.querySelector('input[name="search_text"]');
-        if(searchName) searchName.checked = true;
-        if(searchReading) searchReading.checked = true;
-        if(searchText) searchText.checked = true;
-
-        // UIの状態を更新
-        updateToggleButtonLabel();
+        // 最後にUIの状態を更新
         updateCivilizationControls();
-
-        // 商品名リストの連動機能をトリガー
-        if (goodsTypeSelect) {
-            goodsTypeSelect.dispatchEvent(new Event('change'));
-        }
     }
+    
     if (resetBtn) {
         resetBtn.addEventListener('click', resetSearch);
     }
