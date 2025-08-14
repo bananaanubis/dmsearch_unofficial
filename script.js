@@ -318,14 +318,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function formatAbilityText(rawText) {
             if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
+            
             return rawText.split('\n').map(line => {
                 const trimmed = line.trim();
                 if (trimmed === '') return null;
+                
+                // ★★★ここからが新しいロジック★★★
                 const startsWithIcon = trimmed.startsWith('{st}') || trimmed.startsWith('{br}');
+                const isParenthetical = trimmed.startsWith('(') && trimmed.endsWith(')');
+                // ★★★ここまでが新しいロジック★★★
+        
                 let escaped = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 escaped = escaped.replace(/{br}/g, '<img src="parts/card_list_block.webp" class="text-icon">');
                 escaped = escaped.replace(/{st}/g, '<img src="parts/card_list_strigger.webp" class="text-icon">');
-                return startsWithIcon ? escaped : '■ ' + escaped;
+                
+                // ★★★ここからが新しいロジック★★★
+                // アイコンで始まるか、または丸括弧で囲まれている行には、■ を付けない
+                return (startsWithIcon || isParenthetical) ? escaped : '■ ' + escaped;
+                // ★★★ここまでが新しいロジック★★★
+        
             }).filter(line => line !== null).join('<br>');
         }
         function formatFlavorText(rawText) {
