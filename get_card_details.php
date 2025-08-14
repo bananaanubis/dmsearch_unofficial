@@ -18,7 +18,11 @@ function format_text_for_display($raw_text, $is_ability) {
         
         if ($is_ability) {
             // 能力テキストの場合の処理
+            
+            // ★★★ここからが新しいロジック★★★
             $startsWithIcon = str_starts_with($trimmed_line, '{st}') || str_starts_with($trimmed_line, '{br}');
+            $isParenthetical = str_starts_with($trimmed_line, '(') && str_ends_with($trimmed_line, ')');
+            // ★★★ここまでが新しいロジック★★★
             
             $replacements = [
                 '{br}' => '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
@@ -26,7 +30,15 @@ function format_text_for_display($raw_text, $is_ability) {
             ];
             $formatted_line = str_replace(array_keys($replacements), array_values($replacements), $escaped_line);
             
-            $processed_lines[] = $startsWithIcon ? $formatted_line : '■ ' . $formatted_line;
+            // ★★★ここからが新しいロジック★★★
+            // アイコンで始まるか、または丸括弧で囲まれている行には、■ を付けない
+            if ($startsWithIcon || $isParenthetical) {
+                $processed_lines[] = $formatted_line;
+            } else {
+                $processed_lines[] = '■ ' . $formatted_line;
+            }
+            // ★★★ここまでが新しいロジック★★★
+
         } else {
             // フレーバーテキストの場合の処理
             $processed_lines[] = $escaped_line;
@@ -34,9 +46,8 @@ function format_text_for_display($raw_text, $is_ability) {
     }
     
     $final_text = implode('<br>', $processed_lines);
-    return $is_ability ? $final_text : nl2br($final_text); // フレーバーはnl2brも適用
+    return $is_ability ? $final_text : nl2br($final_text);
 }
-
 function process_files_from_folder($modelnum, $file_type) {
     if (!$modelnum) return [];
     $folder_path = $file_type . "/" . $modelnum;
