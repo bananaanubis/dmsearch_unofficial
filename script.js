@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
 
-    // --- ④ リセットボタンのイベントリスナー (実績のある安定版ロジック) ---
+    // --- ④ リセットボタンのイベントリスナー (安定版) ---
     function resetSearch() {
         // テキスト入力
         const searchInput = document.querySelector('input[name="search"]');
@@ -144,7 +144,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (powMinInput) powMinInput.disabled = false;
         if (powMaxInput) powMaxInput.disabled = false;
 
-        // ドロップダウン (HTMLの初期値に戻す)
+        // 発売年
+        const yearMinInput = document.querySelector('input[name="year_min"]');
+        const yearMaxInput = document.querySelector('input[name="year_max"]');
+        if (yearMinInput) yearMinInput.value = "";
+        if (yearMaxInput) yearMaxInput.value = "";
+
+        // ドロップダウン
         document.querySelectorAll('select.styled-select').forEach(select => {
              const name = select.name;
              if (name === 'mana_filter') select.value = 'all';
@@ -153,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if(sortOrderHiddenInput) sortOrderHiddenInput.value = 'release_new';
 
-        // ★★★ 商品名リストの連動機能を、ここでトリガーする ★★★
+        // 商品名リストの連動機能をトリガー
         if (goodsTypeSelect) {
             goodsTypeSelect.dispatchEvent(new Event('change'));
         }
@@ -189,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // 最後にUIの状態を更新
         updateCivilizationControls();
     }
-    
     if (resetBtn) {
         resetBtn.addEventListener('click', resetSearch);
     }
@@ -198,168 +203,149 @@ document.addEventListener('DOMContentLoaded', () => {
     updateToggleButtonLabel();
     updateCivilizationControls();
 
-// --- ⑤ モーダル機能 ---
+    // --- ⑥ モーダル機能 ---
+    const cardGrid = document.querySelector('.card-grid');
+    const modal = document.getElementById('card-modal');
+    if (cardGrid && modal) {
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalOverlay = document.querySelector('.modal-overlay');
+        const modalCardName = document.getElementById('modal-card-name');
+        const modalCardsContainer = document.getElementById('modal-cards-container');
+        const modalCardTemplate = document.getElementById('modal-card-template');
 
-// モーダル関連の要素を取得
-const cardGrid = document.querySelector('.card-grid');
-const modal = document.getElementById('card-modal');
-const modalCloseBtn = document.getElementById('modal-close-btn');
-const modalOverlay = document.querySelector('.modal-overlay');
-const modalCardName = document.getElementById('modal-card-name');
-const modalCardsContainer = document.getElementById('modal-cards-container');
-const modalCardTemplate = document.getElementById('modal-card-template');
+        let scrollTimeout;
+        const updateModalHeaderOnScroll = () => {
+            const cardInstances = modalCardsContainer.querySelectorAll('.modal-card-instance');
+            if (cardInstances.length <= 1) return;
+            let topVisibleCardName = '';
+            for (const instance of cardInstances) {
+                const rect = instance.getBoundingClientRect();
+                const modalRect = modalCardsContainer.getBoundingClientRect();
+                if (rect.top >= modalRect.top && rect.top < modalRect.bottom) {
+                    topVisibleCardName = instance.dataset.cardName;
+                    break;
+                }
+            }
+            if (topVisibleCardName) {
+                modalCardName.textContent = topVisibleCardName;
+            }
+        };
 
-let scrollTimeout;
-const updateModalHeaderOnScroll = () => {
-    const cardInstances = modalCardsContainer.querySelectorAll('.modal-card-instance');
-    if (cardInstances.length <= 1) return;
-    let topVisibleCardName = '';
-    for (const instance of cardInstances) {
-        const rect = instance.getBoundingClientRect();
-        const modalRect = modalCardsContainer.getBoundingClientRect();
-        if (rect.top >= modalRect.top && rect.top < modalRect.bottom) {
-            topVisibleCardName = instance.dataset.cardName;
-            break;
-        }
-    }
-    if (topVisibleCardName) {
-        modalCardName.textContent = topVisibleCardName;
-    }
-};
-modalCardsContainer.addEventListener('scroll', () => {
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(updateModalHeaderOnScroll, 50);
-});
+        modalCardsContainer.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(updateModalHeaderOnScroll, 50);
+        });
 
-// モーダルを開くイベントリスナー
-if (cardGrid && modal) {
-    cardGrid.addEventListener('click', (e) => {
-        const cardImage = e.target.closest('.card-image-item');
-        if (!cardImage) return;
-        const cardId = cardImage.dataset.cardId;
-        if (!cardId) return;
-        
-        modalCardsContainer.innerHTML = ''; 
-        modalCardName.textContent = '読み込み中...';
-        modal.style.display = 'flex';
+        cardGrid.addEventListener('click', (e) => {
+            const cardImage = e.target.closest('.card-image-item');
+            if (!cardImage) return;
+            const cardId = cardImage.dataset.cardId;
+            if (!cardId) return;
+            
+            modalCardsContainer.innerHTML = ''; 
+            modalCardName.textContent = '読み込み中...';
+            modal.style.display = 'flex';
 
-        fetch(`get_card_details.php?id=${cardId}`)
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                if (data.error || !data.cards || data.cards.length === 0) {
-                    console.error('API Error:', data.error || 'No cards found');
+            fetch(`get_card_details.php?id=${cardId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error || !data.cards || data.cards.length === 0) {
+                        console.error('API Error:', data.error || 'No cards found');
+                        modalCardName.textContent = 'エラー';
+                        modalCardsContainer.innerHTML = '<p style="text-align:center;">カード情報の取得に失敗しました。</p>';
+                        return;
+                    }
+                    
+                    modalCardName.textContent = data.set_name || data.cards[0].card_name;
+
+                    data.cards.forEach((cardInfo, index) => {
+                        const templateClone = modalCardTemplate.content.cloneNode(true);
+                        const cardInstance = templateClone.querySelector('.modal-card-instance');
+                        cardInstance.dataset.cardName = cardInfo.card_name;
+
+                        const part = String.fromCharCode(97 + index);
+
+                        templateClone.querySelector('.modal-card-type').textContent = cardInfo.card_type;
+                        templateClone.querySelector('.modal-civilization').textContent = cardInfo.civilization;
+                        templateClone.querySelector('.modal-rarity').textContent = cardInfo.rarity;
+                        templateClone.querySelector('.modal-power').textContent = (cardInfo.pow == 2147483647) ? '∞' : (cardInfo.pow ?? '---');
+                        templateClone.querySelector('.modal-cost').textContent = (cardInfo.cost == 2147483647) ? '∞' : (cardInfo.cost ?? '---');
+                        templateClone.querySelector('.modal-mana').textContent = cardInfo.mana ?? '---';
+                        templateClone.querySelector('.modal-race').textContent = cardInfo.race;
+                        templateClone.querySelector('.modal-illustrator').textContent = cardInfo.illustrator;
+
+                        let imageUrl = `card/${cardInfo.modelnum}.webp`;
+                        if (data.is_set && data.image_urls && data.image_urls[part]) {
+                            imageUrl = data.image_urls[part];
+                        }
+                        templateClone.querySelector('.modal-card-image').src = imageUrl;
+                        templateClone.querySelector('.modal-card-image').alt = cardInfo.card_name;
+                        
+                        const textSection = templateClone.querySelector('.modal-ability-section');
+                        let abilityText = data.is_set ? 
+                            ((data.texts && data.texts[part]) ? formatAbilityText(data.texts[part]) : '（テキスト情報なし）') : 
+                            cardInfo.text;
+                        if (abilityText && abilityText !== '（テキスト情報なし）') {
+                            templateClone.querySelector('.modal-text').innerHTML = abilityText;
+                            textSection.style.display = 'block';
+                        }
+
+                        const flavorSection = templateClone.querySelector('.modal-flavor-section');
+                        let flavorText = data.is_set ? 
+                            ((data.flavortexts && data.flavortexts[part]) ? formatFlavorText(data.flavortexts[part]) : null) :
+                            cardInfo.flavortext;
+                        if (flavorText) {
+                            templateClone.querySelector('.modal-flavortext').innerHTML = flavorText;
+                            flavorSection.style.display = 'block';
+                        }
+                        
+                        modalCardsContainer.appendChild(templateClone);
+                    });
+
+                    if (data.is_set && data.cards.length > 0) {
+                        modalCardName.textContent = data.cards[0].card_name;
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch Error:', error);
                     modalCardName.textContent = 'エラー';
-                    modalCardsContainer.innerHTML = '<p style="text-align:center;">カード情報の取得に失敗しました。</p>';
-                    return;
-                }
-                
-                modalCardName.textContent = data.set_name || data.cards[0].card_name;
-
-                data.cards.forEach((cardInfo, index) => {
-                    const templateClone = modalCardTemplate.content.cloneNode(true);
-                    const cardInstance = templateClone.querySelector('.modal-card-instance');
-                    cardInstance.dataset.cardName = cardInfo.card_name;
-
-                    const part = String.fromCharCode(97 + index);
-
-                    templateClone.querySelector('.modal-card-type').textContent = cardInfo.card_type;
-                    templateClone.querySelector('.modal-civilization').textContent = cardInfo.civilization;
-                    templateClone.querySelector('.modal-rarity').textContent = cardInfo.rarity;
-                    templateClone.querySelector('.modal-power').textContent = (cardInfo.pow == 2147483647) ? '∞' : (cardInfo.pow ?? '---');
-                    templateClone.querySelector('.modal-cost').textContent = (cardInfo.cost == 2147483647) ? '∞' : (cardInfo.cost ?? '---');
-                    templateClone.querySelector('.modal-mana').textContent = cardInfo.mana ?? '---';
-                    templateClone.querySelector('.modal-race').textContent = cardInfo.race;
-                    templateClone.querySelector('.modal-illustrator').textContent = cardInfo.illustrator;
-
-                    let imageUrl = `card/${cardInfo.modelnum}.webp`;
-                    if (data.is_set && data.image_urls && data.image_urls[part]) {
-                        imageUrl = data.image_urls[part];
-                    }
-                    templateClone.querySelector('.modal-card-image').src = imageUrl;
-                    templateClone.querySelector('.modal-card-image').alt = cardInfo.card_name;
-                    
-                    const textSection = templateClone.querySelector('.modal-ability-section');
-                    let abilityText = data.is_set ? 
-                        ((data.texts && data.texts[part]) ? formatAbilityText(data.texts[part]) : '（テキスト情報なし）') : 
-                        cardInfo.text;
-                    if (abilityText && abilityText !== '（テキスト情報なし）') {
-                        templateClone.querySelector('.modal-text').innerHTML = abilityText;
-                        textSection.style.display = 'block';
-                    }
-
-                    // ★★★ここからが追加/修正するロジック★★★
-                    const flavorSection = templateClone.querySelector('.modal-flavor-section');
-                    let flavorText = null;
-                    if (data.is_set) {
-                        // セットカードの場合、パートごとのフレーバーテキストを取得
-                        flavorText = (data.flavortexts && data.flavortexts[part]) ? formatFlavorText(data.flavortexts[part]) : null;
-                    } else {
-                        // 通常カードの場合
-                        flavorText = cardInfo.flavortext;
-                    }
-                    if (flavorText) {
-                        templateClone.querySelector('.modal-flavortext').innerHTML = flavorText;
-                        flavorSection.style.display = 'block';
-                    }
-                    // ★★★ここまでが追加/修正するロジック★★★
-                    
-                    modalCardsContainer.appendChild(templateClone);
+                    modalCardsContainer.innerHTML = '<p style="text-align:center;">通信エラーが発生しました。</p>';
                 });
+        });
 
-                if (data.is_set && data.cards.length > 0) {
-                    modalCardName.textContent = data.cards[0].card_name;
-                }
-            })
-            .catch(error => {
-                console.error('Fetch Error:', error);
-                modalCardName.textContent = 'エラー';
-                modalCardsContainer.innerHTML = '<p style="text-align:center;">通信エラーが発生しました。</p>';
-            });
-    });
-}
+        function formatAbilityText(rawText) {
+            if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
+            return rawText.split('\n').map(line => {
+                const trimmed = line.trim();
+                if (trimmed === '') return null;
+                const startsWithIcon = trimmed.startsWith('{st}') || trimmed.startsWith('{br}');
+                let escaped = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                escaped = escaped.replace(/{br}/g, '<img src="parts/card_list_block.webp" class="text-icon">');
+                escaped = escaped.replace(/{st}/g, '<img src="parts/card_list_strigger.webp" class="text-icon">');
+                return startsWithIcon ? escaped : '■ ' + escaped;
+            }).filter(line => line !== null).join('<br>');
+        }
+        function formatFlavorText(rawText) {
+             if (!rawText || rawText.trim() === '') return null;
+             const escaped = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+             return escaped.replace(/\n/g, '<br>');
+        }
 
-function formatAbilityText(rawText) {
-    if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
-    
-    return rawText.split('\n').map(line => {
-        const trimmed = line.trim();
-        if (trimmed === '') return null;
-        
-        // ★★★ここからが新しいロジック★★★
-        const startsWithIcon = trimmed.startsWith('{st}') || trimmed.startsWith('{br}');
-        // ★★★ここまでが新しいロジック★★★
+        const closeModal = () => {
+            if (modal) modal.style.display = 'none';
+        };
 
-        let escaped = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        escaped = escaped.replace(/{br}/g, '<img src="parts/card_list_block.webp" class="text-icon">');
-        escaped = escaped.replace(/{st}/g, '<img src="parts/card_list_strigger.webp" class="text-icon">');
-        
-        // ★★★ここからが新しいロジック★★★
-        return startsWithIcon ? escaped : '■ ' + escaped;
-        // ★★★ここまでが新しいロジック★★★
-
-    }).filter(line => line !== null).join('<br>');
-}
-    
-function formatFlavorText(rawText) {
-     if (!rawText || rawText.trim() === '') return null;
-     const escaped = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-     return escaped.replace(/\n/g, '<br>');
-}
-
-const closeModal = () => {
-    if (modal) modal.style.display = 'none';
-};
-
-if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
-if (modalOverlay) modalOverlay.addEventListener('click', (e) => {
-    if (e.target === modalOverlay) closeModal();
-});
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
-        closeModal();
+        if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+        if (modalOverlay) modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+                closeModal();
+            }
+        });
     }
-});
 });
