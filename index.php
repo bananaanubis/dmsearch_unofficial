@@ -16,7 +16,7 @@ try {
         // 【ローカル環境】XAMPP用の設定
         $db_host = '127.0.0.1';
         $db_port = 3306;
-        $db_name = 'dmsearch'; // ★ローカルDB名を修正
+        $db_name = 'mysql';
         $db_user = 'root';
         $db_pass = '';
     }
