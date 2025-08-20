@@ -353,13 +353,17 @@ button {
 
 /* --- 並び替えとフィルターの親コンテナ --- */
 .sort-and-filter-container {
-    max-width: 960px;
-    margin: 20px auto 10px auto;
-    display: flex;
-    justify-content: space-between; /* ★★★ 両端寄せに戻す ★★★ */
-    align-items: center;
+    max-width: 960px; /* ★全体の幅は、この親コンテナで管理 */
+    margin: 20px auto 10px auto; /* ★ページの中央に配置 */
+    display: flex; /* ★中の要素を横並びに */
+    justify-content: space-between; /* ★中の要素を両端に配置 */
+    align-items: center; /* ★上下中央揃え */
 }
-/* --- 並び替え機能のコンテナに、右側の余白を自動で設定 --- */
+
+/* --- 並び替え機能のコンテナ (左側の要素) --- */
 .sort-container {
-    margin-right: auto; /* ★★★ これが魔法の一行 ★★★ */
+    /* max-widthやmarginは不要なので削除 */
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
