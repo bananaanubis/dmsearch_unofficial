@@ -89,6 +89,7 @@ $selected_goodstype_id = isset($_GET['goodstype_id_filter']) ? intval($_GET['goo
 $selected_illus_id = isset($_GET['illus_id_filter']) ? intval($_GET['illus_id_filter']) : 0;
 $selected_mana = isset($_GET['mana_filter']) ? $_GET['mana_filter'] : 'all';
 $selected_sort = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'release_new';
+$show_same_name = isset($_GET['show_same_name']) || !$is_submitted;
 
 if ($is_submitted) {
     $search_name = isset($_GET['search_name']);
@@ -205,6 +206,7 @@ $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 $base_sql = "
     SELECT 
         card.card_id, 
+        c.card_name,
         card.reading,
         card.cost,
         card.pow,
@@ -223,14 +225,28 @@ $stmt = $pdo->prepare($base_sql);
 $stmt->execute($params);
 $all_matching_cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// --- PHPで、modelnumごとに結果をまとめる（重複排除） ---
-$unique_cards_by_modelnum = [];
-foreach ($all_matching_cards as $card) {
-    if (!isset($unique_cards_by_modelnum[$card['modelnum']])) {
-        $unique_cards_by_modelnum[$card['modelnum']] = $card;
+$unique_cards = [];
+if ($show_same_name) {
+    // --- 同名カードを表示する場合 ---
+    $unique_cards_by_modelnum = [];
+    foreach ($all_matching_cards as $card) {
+        if (!isset($unique_cards_by_modelnum[$card['modelnum']])) {
+            $unique_cards_by_modelnum[$card['modelnum']] = $card;
+        }
     }
+    $unique_cards = array_values($unique_cards_by_modelnum);
+} else {
+    // --- 同名カードを非表示にする場合 ---
+    $latest_cards_by_name = [];
+    foreach ($all_matching_cards as $card) {
+        $card_name = $card['card_name'];
+        // まだこの名前のカードがないか、または今見ているカードの方が発売日が新しい場合
+        if (!isset($latest_cards_by_name[$card_name]) || $card['release_date'] > $latest_cards_by_name[$card_name]['release_date']) {
+            $latest_cards_by_name[$card_name] = $card;
+        }
+    }
+    $unique_cards = array_values($latest_cards_by_name);
 }
-$unique_cards = array_values($unique_cards_by_modelnum);
 
 // --- 総件数の確定 ---
 $total = count($unique_cards);
