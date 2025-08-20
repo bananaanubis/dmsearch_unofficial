@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const goodsSelect = document.querySelector('select[name="goods_id_filter"]');
     const sortOrderSelect = document.getElementById('sort-order');
     const sortOrderHiddenInput = document.getElementById('sort-order-hidden');
+    const showSameNameCheck = document.getElementById('show-same-name-check');
 
     // --- ② メインの制御関数 ---
     function updateCivilizationControls() {
@@ -122,7 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
-
+    // 同名カード表示チェックボックスが変更されたら、フォームを送信
+    if (showSameNameCheck && searchForm) {
+        showSameNameCheck.addEventListener('change', () => {
+            searchForm.submit();
+        });
+    }
     // --- ④ リセットボタンのイベントリスナー (安定版) ---
     function resetSearch() {
         // テキスト入力
