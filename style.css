@@ -15,7 +15,6 @@ img {
     height: 244.33px;
 }
 form {
-    text-align: center;
     margin-bottom: 10px;
 }
 .pagination {
@@ -348,18 +347,19 @@ button {
     border-bottom: none;
     margin-bottom: 0;
 }
+.main-form-container {
+    text-align: center;
+}
+
 /* --- 並び替えとフィルターの親コンテナ --- */
 .sort-and-filter-container {
     max-width: 960px;
     margin: 20px auto 10px auto;
-    display: flex; /* 横並びにする */
-    align-items: center; /* 上下中央揃え */
+    display: flex;
+    justify-content: space-between; /* ★★★ 両端寄せに戻す ★★★ */
+    align-items: center;
 }
-
 /* --- 並び替え機能のコンテナに、右側の余白を自動で設定 --- */
 .sort-container {
     margin-right: auto; /* ★★★ これが魔法の一行 ★★★ */
-}
-.filter-container {
-    /* 右側の要素なので、特に指定は不要 */
 }
