@@ -299,23 +299,31 @@
     </div>
     <!-- ▲▲▲ 中央揃えコンテナの終了 ▲▲▲ -->
     
-    <!-- ▼▼▼ 左寄せ/右寄せのコンテナ (formの内側にあることを確認) ▼▼▼ -->
     <input type="hidden" id="sort-order-hidden" name="sort_order" value="<?= htmlspecialchars($selected_sort) ?>">
-    <div class="sort-and-filter-container">
-        <div class="sort-container">
-            <label for="sort-order" class="sort-label">ならびかえ</label>
-            <select id="sort-order" class="styled-select sort-select">
-                <option value="release_new" <?= ($selected_sort == 'release_new') ? 'selected' : '' ?>>発売日の新しい順</option>
-                <!-- (中略: 他のoptionタグ) -->
-            </select>
+    <div id="sort-area">
+        <div class="sort-areaLeft">
+            <p>ならびかえ</p>
+            <div class="select01">
+                <select id="sort-order" class="is-empty2"> <!-- ★name属性は不要, idは維持 -->
+                    <option value="release_new" <?= ($selected_sort == 'release_new') ? 'selected' : '' ?>>発売日の新しい順</option>
+                    <option value="release_old" <?= ($selected_sort == 'release_old') ? 'selected' : '' ?>>発売日の古い順</option>
+                    <option value="name_asc" <?= ($selected_sort == 'name_asc') ? 'selected' : '' ?>>カード名の昇順</option>
+                    <option value="name_desc" <?= ($selected_sort == 'name_desc') ? 'selected' : '' ?>>カード名の降順</option>
+                    <option value="cost_desc" <?= ($selected_sort == 'cost_desc') ? 'selected' : '' ?>>コストの大きい順</option>
+                    <option value="cost_asc" <?= ($selected_sort == 'cost_asc') ? 'selected' : '' ?>>コストの小さい順</option>
+                    <option value="power_desc" <?= ($selected_sort == 'power_desc') ? 'selected' : '' ?>>パワーの大きい順</option>
+                    <option value="power_asc" <?= ($selected_sort == 'power_asc') ? 'selected' : '' ?>>パワーの小さい順</option>
+                </select>
+            </div>
         </div>
-        <div class="filter-container">
-            <label class="checkbox-label-inline">
-                <input type="checkbox" id="show-same-name-check" name="show_same_name" value="1" <?= $show_same_name ? 'checked' : '' ?>>
-                同名カードを表示する
-            </label>
+        <div class="sort-areaRight">
+            <div class="check01">
+                <input id="show-same-name-check" class="checkbox1" type="checkbox" name="show_same_name" value="1" <?= $show_same_name ? 'checked' : '' ?>>
+                <label for="show-same-name-check">同名カードを表示する</label>
+            </div>
         </div>
     </div>
+    <!-- ▲▲▲ 並び替えとフィルターのセクション終了 ▲▲▲ -->
 </form> <!-- ★★★ 閉じタグは、ここに一つだけ！ ★★★ -->
 <!-- ▲▲▲ FORM END ▲▲▲ -->
 
