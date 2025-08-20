@@ -63,7 +63,7 @@ $offset = ($page - 1) * $perPage;
 
 // === フォームからの入力値の受け取り ===
 $search = isset($_GET['search']) ? $_GET['search'] : '';
-$is_submitted = array_key_exists('search', $_GET);
+$is_submitted = array_key_exists('search', $_GET) || count(array_filter(array_keys($_GET), fn($k) => $k !== 'page')) > 0;
 $cost_min = isset($_GET['cost_min']) ? $_GET['cost_min'] : '';
 $cost_max = isset($_GET['cost_max']) ? $_GET['cost_max'] : '';
 $cost_zero = isset($_GET['cost_zero']);
@@ -294,6 +294,7 @@ if (!empty($all_matching_card_ids)) {
         }
     }
 }
+
 
 // --- カード画像のパスを事前に処理する ---
 foreach ($cards as $key => $card) {
