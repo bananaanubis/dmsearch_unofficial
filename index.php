@@ -205,19 +205,19 @@ $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 // --- まず、条件に合うカードを、ソートに必要な情報をすべて含めて取得する ---
 $base_sql = "
     SELECT 
-        card.card_id, 
-        c.card_name,
-        card.reading,
-        card.cost,
-        card.pow,
+        c.card_id, 
+        c.card_name, -- 同名カード判定に必要
+        c.reading,
+        c.cost,
+        c.pow,
         cd.modelnum,
         cd.release_date,
         cr.rarity_id,
-        (SELECT COUNT(cc_inner.civilization_id) FROM card_civilization cc_inner WHERE cc_inner.card_id = card.card_id) as civ_count,
-        (SELECT MIN(cc_inner.civilization_id) FROM card_civilization cc_inner WHERE cc_inner.card_id = card.card_id) as min_civ_id
-    FROM card
-    JOIN card_detail cd ON card.card_id = cd.card_id
-    LEFT JOIN card_rarity cr ON card.card_id = cr.card_id
+        (SELECT COUNT(cc_inner.civilization_id) FROM card_civilization cc_inner WHERE cc_inner.card_id = c.card_id) as civ_count,
+        (SELECT MIN(cc_inner.civilization_id) FROM card_civilization cc_inner WHERE cc_inner.card_id = c.card_id) as min_civ_id
+    FROM card AS c -- ★念のため、こちらにもASを追加
+    JOIN card_detail AS cd ON c.card_id = cd.card_id
+    LEFT JOIN card_rarity AS cr ON c.card_id = cr.card_id -- ★★★ この AS cr を追加 ★★★
     {$join_str}
     {$where}
 ";
