@@ -348,3 +348,15 @@ button {
     border-bottom: none;
     margin-bottom: 0;
 }
+/* --- 並び替えとフィルターの親コンテナ --- */
+.sort-and-filter-container {
+    max-width: 960px;
+    margin: 20px auto 10px auto;
+    display: flex;
+    justify-content: space-between; /* 両端に寄せる */
+    align-items: center;
+}
+
+.filter-container {
+    /* 右側の要素なので、特に指定は不要 */
+}
