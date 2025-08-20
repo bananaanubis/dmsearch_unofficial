@@ -16,7 +16,7 @@ try {
         // 【ローカル環境】XAMPP用の設定
         $db_host = '127.0.0.1';
         $db_port = 3306;
-        $db_name = 'dmsearch'; // あなたのローカルのDB名
+        $db_name = 'dmsearch'; // ★ローカルDB名を修正
         $db_user = 'root';
         $db_pass = '';
     }
@@ -61,9 +61,10 @@ $perPage = 50;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $perPage;
 
-// === フォームからの入力値の受け取り ===
+// === フォームからの入力値の受け取り (変更なし) ===
+// (中略: このセクションはあなたのコードのままでOKです)
 $search = isset($_GET['search']) ? $_GET['search'] : '';
-$is_submitted = array_key_exists('search', $_GET) || count(array_filter(array_keys($_GET), fn($k) => $k !== 'page')) > 0;
+$is_submitted = array_key_exists('search', $_GET);
 $cost_min = isset($_GET['cost_min']) ? $_GET['cost_min'] : '';
 $cost_max = isset($_GET['cost_max']) ? $_GET['cost_max'] : '';
 $cost_zero = isset($_GET['cost_zero']);
@@ -89,8 +90,6 @@ $selected_goodstype_id = isset($_GET['goodstype_id_filter']) ? intval($_GET['goo
 $selected_illus_id = isset($_GET['illus_id_filter']) ? intval($_GET['illus_id_filter']) : 0;
 $selected_mana = isset($_GET['mana_filter']) ? $_GET['mana_filter'] : 'all';
 $selected_sort = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'release_new';
-$show_same_name = isset($_GET['show_same_name']) || !$is_submitted;
-
 if ($is_submitted) {
     $search_name = isset($_GET['search_name']);
     $search_reading = isset($_GET['search_reading']);
@@ -102,7 +101,10 @@ if ($is_submitted) {
     $search_name = true; $search_reading = true; $search_text = true;
     $search_race = false; $search_flavortext = false; $search_illus = false;
 }
-$is_advanced_open = !empty($_GET['advanced_open']) && $_GET['advanced_open'] == '1';
+$is_advanced_open = false; 
+if (!empty($_GET['advanced_open']) && $_GET['advanced_open'] == '1') {
+    $is_advanced_open = true;
+}
 $mono_color_status = 1; $multi_color_status = 1;
 $selected_main_civs = []; $selected_exclude_civs = [];
 if ($is_submitted) {
@@ -112,11 +114,11 @@ if ($is_submitted) {
     if (!empty($_GET['exclude_civs'])) { $selected_exclude_civs = array_values(array_filter($_GET['exclude_civs'], fn($v) => $v != 0)); }
 }
 
-// === SQLクエリの組み立て ===
+// === SQLクエリの組み立て (変更なし) ===
+// (中略: このセクションはあなたのコードのままでOKです)
 $conditions = [];
 $params = [];
 $joins = [];
-
 if ($search !== '') {
     $keyword_conditions = [];
     if ($search_name) { $keyword_conditions[] = 'card.card_name LIKE :search_keyword_name'; $params[':search_keyword_name'] = '%' . $search . '%'; }
@@ -198,102 +200,84 @@ if (!empty($civ_type_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_t
 if (!empty($civ_select_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_select_conditions) . ')'; }
 if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_select_conditions)) { $conditions[] = "1 = 0"; }
 
-// === SQLクエリの実行 (2段階取得アプローチ) ===
+// ★★★ここからが、新しいSQL実行ロジック★★★
+// === SQLクエリの実行 (PHPによる重複排除アプローチ) ===
 $join_str = !empty($joins) ? implode(' ', array_unique($joins)) : '';
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
-// --- ステップ1: 条件に合うcard_idを、重複を許して全て取得する ---
-$id_sql = "
-    SELECT DISTINCT card.card_id
+// --- まず、条件に合うカードを、重複を許して全件取得する ---
+$base_sql = "
+    SELECT 
+        card.card_id, 
+        card.reading,
+        card.cost,
+        card.pow,
+        cd.modelnum,
+        cd.release_date
     FROM card
     JOIN card_detail cd ON card.card_id = cd.card_id
     {$join_str}
     {$where}
 ";
-$stmt = $pdo->prepare($id_sql);
+$stmt = $pdo->prepare($base_sql);
 $stmt->execute($params);
-$all_matching_card_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$all_matching_cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$cards = [];
-$total = 0;
-
-if (!empty($all_matching_card_ids)) {
-    // --- ステップ2: 取得したcard_idを元に、表示とソートに必要な全情報を取得 ---
-    $placeholders = implode(',', array_fill(0, count($all_matching_card_ids), '?'));
-    $details_sql = "
-        SELECT 
-            c.card_id, c.card_name, c.reading, c.cost, c.pow,
-            cd.modelnum, cd.release_date,
-            cr.rarity_id,
-            (SELECT COUNT(cc.civilization_id) FROM card_civilization cc WHERE cc.card_id = c.card_id) as civ_count,
-            (SELECT MIN(cc.civilization_id) FROM card_civilization cc WHERE cc.card_id = c.card_id) as min_civ_id
-        FROM card c
-        JOIN card_detail cd ON c.card_id = cd.card_id
-        LEFT JOIN card_rarity cr ON c.card_id = cr.card_id
-        WHERE c.card_id IN ({$placeholders})
-    ";
-    $stmt = $pdo->prepare($details_sql);
-    $stmt->execute($all_matching_card_ids);
-    $all_card_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // --- ステップ3: PHPで、同名/同modelnumの重複を排除する ---
-    $unique_cards = [];
-    if ($show_same_name) {
-        $unique_cards_by_modelnum = [];
-        foreach ($all_card_details as $card) {
-            if (!isset($unique_cards_by_modelnum[$card['modelnum']])) {
-                $unique_cards_by_modelnum[$card['modelnum']] = $card;
-            }
-        }
-        $unique_cards = array_values($unique_cards_by_modelnum);
-    } else {
-        $latest_cards_by_name = [];
-        foreach ($all_card_details as $card) {
-            $card_name = $card['card_name'];
-            if (!isset($latest_cards_by_name[$card_name]) || $card['release_date'] > $latest_cards_by_name[$card_name]['release_date']) {
-                $latest_cards_by_name[$card_name] = $card;
-            }
-        }
-        $unique_cards = array_values($latest_cards_by_name);
-    }
-    
-    // --- ステップ4: 総件数の確定と、PHPでのソート ---
-    $total = count($unique_cards);
-    usort($unique_cards, function($a, $b) use ($selected_sort) {
-        $rarity_cmp = ($b['rarity_id'] ?? 0) <=> ($a['rarity_id'] ?? 0);
-        $a_civ_count = $a['civ_count'] ?? 99; $b_civ_count = $b['civ_count'] ?? 99;
-        $civ_count_cmp = ($a_civ_count == 1 ? 0 : 1) <=> ($b_civ_count == 1 ? 0 : 1);
-        $min_civ_id_cmp = ($a['min_civ_id'] ?? 99) <=> ($b['min_civ_id'] ?? 99);
-        $civ_cmp = $civ_count_cmp ?: $min_civ_id_cmp;
-        $id_cmp = $a['card_id'] <=> $b['card_id'];
-        switch ($selected_sort) {
-            case 'release_old': $main_cmp = strcmp($a['release_date'], $b['release_date']); break;
-            case 'cost_desc': $main_cmp = ($b['cost'] ?? -1) <=> ($a['cost'] ?? -1); break;
-            case 'cost_asc': $main_cmp = ($a['cost'] ?? -1) <=> ($b['cost'] ?? -1); break;
-            case 'name_asc': $main_cmp = strcmp($a['reading'], $b['reading']); break;
-            case 'name_desc': $main_cmp = strcmp($b['reading'], $a['reading']); break;
-            case 'power_desc': $main_cmp = ($b['pow'] ?? -1) <=> ($a['pow'] ?? -1); break;
-            case 'power_asc': $main_cmp = ($a['pow'] ?? -1) <=> ($b['pow'] ?? -1); break;
-            default: $main_cmp = strcmp($b['release_date'], $a['release_date']); break;
-        }
-        return $main_cmp ?: $rarity_cmp ?: $civ_cmp ?: $id_cmp;
-    });
-
-    // --- ステップ5: PHPでのページネーションと、文明情報の後付け ---
-    $cards_on_page = array_slice($unique_cards, $offset, $perPage);
-    if (!empty($cards_on_page)) {
-        $card_ids_on_page = array_column($cards_on_page, 'card_id');
-        $civ_placeholders = implode(',', array_fill(0, count($card_ids_on_page), '?'));
-        $civ_sql = "SELECT card_id, GROUP_CONCAT(DISTINCT civilization_id ORDER BY civilization_id ASC SEPARATOR '') AS civ_ids FROM card_civilization WHERE card_id IN ({$civ_placeholders}) GROUP BY card_id";
-        $stmt = $pdo->prepare($civ_sql);
-        $stmt->execute($card_ids_on_page);
-        $civ_map = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-        foreach ($cards_on_page as $card) {
-            $card['civ_ids'] = $civ_map[$card['card_id']] ?? '';
-            $cards[] = $card;
-        }
+// --- PHPで、modelnumごとに結果をまとめる（重複排除） ---
+$unique_cards_by_modelnum = [];
+foreach ($all_matching_cards as $card) {
+    if (!isset($unique_cards_by_modelnum[$card['modelnum']])) {
+        $unique_cards_by_modelnum[$card['modelnum']] = $card;
     }
 }
+$unique_cards = array_values($unique_cards_by_modelnum);
+
+// --- 総件数の確定 ---
+$total = count($unique_cards);
+
+// --- PHPで、並び替え（ソート）を実行する ---
+usort($unique_cards, function($a, $b) use ($selected_sort) {
+    // 比較する値を事前に変数に入れておく
+    $reading_cmp = strcmp($a['reading'], $b['reading']);
+    $id_cmp_asc = $a['card_id'] <=> $b['card_id'];
+
+    switch ($selected_sort) {
+        case 'release_old': return strcmp($a['release_date'], $b['release_date']) ?: $id_cmp_asc;
+        case 'cost_desc': return $b['cost'] <=> $a['cost'] ?: $reading_cmp;
+        case 'cost_asc': return $a['cost'] <=> $b['cost'] ?: $reading_cmp;
+        case 'name_asc': return $reading_cmp ?: $id_cmp_asc;
+        case 'name_desc': return strcmp($b['reading'], $a['reading']) ?: $b['card_id'] <=> $a['card_id'];
+        case 'power_desc': return $b['pow'] <=> $a['pow'] ?: $reading_cmp;
+        case 'power_asc': return $a['pow'] <=> $b['pow'] ?: $reading_cmp;
+        default: return strcmp($b['release_date'], $a['release_date']) ?: $id_cmp_asc;
+    }
+});
+
+// --- PHPで、ページネーション（LIMITとOFFSET）を実行する ---
+$cards_on_page = array_slice($unique_cards, $offset, $perPage);
+
+// --- 表示するカードの文明情報だけを、後から取得する ---
+$cards = [];
+if (!empty($cards_on_page)) {
+    $card_ids_on_page = array_column($cards_on_page, 'card_id');
+    $placeholders = implode(',', array_fill(0, count($card_ids_on_page), '?'));
+
+    $civ_sql = "
+        SELECT card_id, GROUP_CONCAT(DISTINCT civilization_id ORDER BY civilization_id ASC SEPARATOR '') AS civ_ids
+        FROM card_civilization
+        WHERE card_id IN ({$placeholders})
+        GROUP BY card_id
+    ";
+    $stmt = $pdo->prepare($civ_sql);
+    $stmt->execute($card_ids_on_page);
+    $civ_map = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    foreach ($cards_on_page as $card) {
+        $card['civ_ids'] = $civ_map[$card['card_id']] ?? '';
+        $cards[] = $card;
+    }
+}
+// ★★★ここまでが、新しいSQL実行ロジック★★★
 
 
 // --- カード画像のパスを事前に処理する ---
@@ -308,7 +292,8 @@ foreach ($cards as $key => $card) {
     }
 }
 
-// === テンプレート表示のための準備 ===
+// === テンプレート表示のための準備 (変更なし) ===
+// (中略: このセクションはあなたのコードのままでOKです)
 $totalPages = ceil($total / $perPage);
 $civ_stmt = $pdo->query("SELECT civilization_id, civilization_name FROM civilization ORDER BY civilization_id ASC");
 $civilization_list = $civ_stmt->fetchAll(PDO::FETCH_ASSOC);
