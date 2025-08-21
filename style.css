@@ -293,13 +293,13 @@ button {
     font-size: 0.9em; line-height: 1.6;
     text-align: left;
 }
+/* --- 特殊能力テキスト内のアイコン画像 --- */
 .text-icon {
-    height: 1em;
-    width: auto;
+    height: 16px; /* ★★★ 高さを16ピクセルに固定 ★★★ */
+    width: auto; /* 幅は自動調整（比率を維持） */
     vertical-align: middle;
     margin: 0 2px;
 }
-
 .pagination a.current-page {
     background-color: #007bff;
     color: white;
