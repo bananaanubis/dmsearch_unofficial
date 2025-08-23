@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (trimmed === '') return null;
                 
                 // 1. 各種フラグをチェック
-                const isIndented = trimmed.startsWith('{tab}');
+                const isIndented = trimmed.startsWith('{TAB}');
                 if (isIndented) {
                     trimmed = trimmed.substring(5).trim();
                 }
