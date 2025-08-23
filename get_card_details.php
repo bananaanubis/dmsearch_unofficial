@@ -3,21 +3,16 @@ header('Content-Type: application/json');
 require_once 'db_connect.php';
 
 // ★★★ すべてのテキスト処理を、この一つの関数に統合する ★★★
-// ★★★ すべてのテキスト処理を、この一つの関数に統合する (最終版) ★★★
 function format_text_for_display($raw_text, $is_ability) {
     if (!$raw_text || trim($raw_text) === '') {
         return $is_ability ? '（テキスト情報なし）' : null;
     }
     
-    // --- ★★★ 拡張性のための設定 ★★★ ---
-    // アイコンの定義リスト (今後、ここに追加するだけでOK)
     $icon_map = [
         '{st}' => '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
         '{br}' => '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
         '{sv}' => '<img src="parts/card_list_survivor.webp" alt="Survivor" class="text-icon">',
-        // 例: '{tap}' => '<img src="parts/card_list_tap.webp" alt="Tap" class="text-icon">',
     ];
-    // --- ★★★ 設定はここまで ★★★ ---
 
     $lines = explode("\n", $raw_text);
     $processed_lines = [];
@@ -25,31 +20,46 @@ function format_text_for_display($raw_text, $is_ability) {
         $trimmed_line = trim($line);
         if (empty($trimmed_line)) continue;
         
+        $line_to_process = $trimmed_line; 
+        
         if ($is_ability) {
             // --- 能力テキストの場合の処理 ---
             
-            // 1. 行頭がアイコンで始まるか、または丸括弧で囲まれているかをチェック
+            // 1. 各種フラグをチェック
+            $isIndented = str_starts_with($line_to_process, '{tab}');
+            if ($isIndented) {
+                // {tab}自体は表示しないので、取り除く
+                $line_to_process = trim(substr($line_to_process, 5));
+            }
+            
             $startsWithIcon = false;
             foreach (array_keys($icon_map) as $icon_tag) {
-                if (str_starts_with($trimmed_line, $icon_tag)) {
+                if (str_starts_with($line_to_process, $icon_tag)) {
                     $startsWithIcon = true;
                     break;
                 }
             }
-            $isParenthetical = str_starts_with($trimmed_line, '(') && str_ends_with($trimmed_line, ')');
+            $isParenthetical = str_starts_with($line_to_process, '(') && str_ends_with($line_to_process, ')');
             
-            // 2. まず、安全のためにHTMLエスケープ
-            $escaped_line = htmlspecialchars($trimmed_line);
-            
-            // 3. 次に、定義されたすべてのアイコンタグを、対応するimgタグに一括で置換
+            // 2. HTMLエスケープとアイコン置換
+            $escaped_line = htmlspecialchars($line_to_process);
             $formatted_line = str_replace(array_keys($icon_map), array_values($icon_map), $escaped_line);
             
-            // 4. 条件に応じて、行頭に■を付ける
-            if ($startsWithIcon || $isParenthetical) {
-                $processed_lines[] = $formatted_line;
-            } else {
-                $processed_lines[] = '■ ' . $formatted_line;
+            // 3. 行頭記号と字下げクラスを決定
+            $prefix = '';
+            $wrapper_class = '';
+
+            if ($isIndented) {
+                $wrapper_class = ' class="indented-text"';
+                if (!$startsWithIcon) {
+                    $prefix = '▶ ';
+                }
+            } elseif (!$startsWithIcon && !$isParenthetical) {
+                $prefix = '■ ';
             }
+            
+            // 4. 最終的なHTMLを組み立てる
+            $processed_lines[] = '<span' . $wrapper_class . '>' . $prefix . $formatted_line . '</span>';
 
         } else {
             // --- フレーバーテキストの場合の処理 ---
@@ -58,8 +68,7 @@ function format_text_for_display($raw_text, $is_ability) {
     }
     
     $final_text = implode('<br>', $processed_lines);
-    // フレーバーテキストの場合は、nl2brではなく、<br>のままでOK
-    return $final_text;
+    return $is_ability ? $final_text : nl2br($final_text);
 }
 function process_files_from_folder($modelnum, $file_type) {
     if (!$modelnum) return [];
