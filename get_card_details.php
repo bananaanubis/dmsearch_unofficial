@@ -27,7 +27,7 @@ function format_text_for_display($raw_text, $is_ability) {
             // --- 能力テキストの場合の処理 ---
             
             // 1. 各種フラグをチェック
-            $isIndented = str_starts_with($line_to_process, '{tab}');
+            $isIndented = str_starts_with($line_to_process, '{TAB}');
             if ($isIndented) {
                 // {tab}自体は表示しないので、取り除く
                 $line_to_process = trim(substr($line_to_process, 5));
