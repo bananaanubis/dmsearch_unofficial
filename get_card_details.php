@@ -12,6 +12,7 @@ function format_text_for_display($raw_text, $is_ability) {
         '{st}' => '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
         '{br}' => '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
         '{sv}' => '<img src="parts/card_list_survivor.webp" alt="Survivor" class="text-icon">',
+        '{TT}' => '<img src="parts/card_list_taptrigger.webp" alt="Tap-Trigger" class="text-icon">',
     ];
 
     $lines = explode("\n", $raw_text);
