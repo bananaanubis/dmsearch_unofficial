@@ -325,36 +325,47 @@ document.addEventListener('DOMContentLoaded', () => {
         function formatAbilityText(rawText) {
             if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
             
-            // --- ★★★ 拡張性のための設定 ★★★ ---
-            // アイコンの定義リスト (今後、ここに追加するだけでOK)
             const iconMap = {
                 '{st}': '<img src="parts/card_list_strigger.webp" class="text-icon">',
                 '{br}': '<img src="parts/card_list_block.webp" class="text-icon">',
                 '{sv}': '<img src="parts/card_list_survivor.webp" class="text-icon">',
-                // 例: '{tap}': '<img src="parts/card_list_tap.webp" class="text-icon">',
             };
             const iconTags = Object.keys(iconMap);
-            // --- ★★★ 設定はここまで ★★★ ---
         
             return rawText.split('\n').map(line => {
-                const trimmed = line.trim();
+                let trimmed = line.trim();
                 if (trimmed === '') return null;
                 
-                // 1. 行頭がアイコンか、または丸括弧で囲まれているかをチェック
+                // 1. 各種フラグをチェック
+                const isIndented = trimmed.startsWith('{tab}');
+                if (isIndented) {
+                    trimmed = trimmed.substring(5).trim();
+                }
+        
                 const startsWithIcon = iconTags.some(tag => trimmed.startsWith(tag));
                 const isParenthetical = trimmed.startsWith('(') && trimmed.endsWith(')');
         
-                // 2. まず、安全のためにHTMLエスケープ
+                // 2. HTMLエスケープとアイコン置換
                 let processedLine = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                
-                // 3. 次に、定義されたすべてのアイコンタグを、対応するimgタグに一括で置換
                 for (const tag of iconTags) {
-                    // 正規表現のgフラグを使って、行内のすべてのアイコンを置換
                     processedLine = processedLine.replace(new RegExp(tag.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), iconMap[tag]);
                 }
                 
-                // 4. 条件に応じて、行頭に■を付ける
-                return (startsWithIcon || isParenthetical) ? processedLine : '■ ' + processedLine;
+                // 3. 行頭記号と字下げクラスを決定
+                let prefix = '';
+                let wrapperClass = '';
+        
+                if (isIndented) {
+                    wrapperClass = ' class="indented-text"';
+                    if (!startsWithIcon) {
+                        prefix = '▶ ';
+                    }
+                } else if (!startsWithIcon && !isParenthetical) {
+                    prefix = '■ ';
+                }
+        
+                // 4. 最終的なHTMLを組み立てる
+                return `<span${wrapperClass}>${prefix}${processedLine}</span>`;
         
             }).filter(line => line !== null).join('<br>');
         }
