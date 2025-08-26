@@ -416,11 +416,17 @@ button {
     padding-left: 1.5em; /* 字下げの幅を定義 (emはフォントサイズ基準の単位) */
     display: block; /* 念のためブロック要素として扱う */
 }
+/* --- 「カード一覧」見出しのスタイル --- */
+h2 {
+    font-size: 2.5em; /* 文字サイズを大きくする (emは基準フォントサイズの倍数) */
+    margin-bottom: 0; /* 下の余白を少し詰める */
+}
 /* --- 検索結果の件数表示 --- */
 .search-results-summary {
     text-align: center;
-    margin: 10px 0;
-    font-size: 1.1em;
+    margin-top: 5px; /* 上の余白を少し詰める */
+    margin-bottom: 20px; /* 下に十分な余白を確保 */
+    font-size: 1.5em; /* 文字サイズを大きくする */
     font-weight: bold;
     color: #333;
 }
