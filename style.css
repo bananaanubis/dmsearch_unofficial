@@ -296,7 +296,7 @@ button {
 /* --- 特殊能力テキスト内のアイコン画像 --- */
 .text-icon {
     height: 1em; /* ★★★ 高さを16ピクセルに固定 ★★★ */
-    width: 1em; /* 幅は自動調整（比率を維持） */
+    width: auto; /* 幅は自動調整（比率を維持） */
     vertical-align: middle;
     margin: 0 2px;
 }
