@@ -240,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             resetSearch();
-            triggerSearch();
         });
     }
     
