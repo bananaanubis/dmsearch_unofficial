@@ -416,3 +416,30 @@ button {
     padding-left: 1.5em; /* 字下げの幅を定義 (emはフォントサイズ基準の単位) */
     display: block; /* 念のためブロック要素として扱う */
 }
+/* --- 検索結果の件数表示 --- */
+.search-results-summary {
+    text-align: center;
+    margin: 10px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #333;
+}
+.search-results-summary p {
+    margin: 0;
+}
+
+/* --- 検索結果0件のメッセージ --- */
+.no-results {
+    width: 100%;
+    text-align: center;
+    padding: 50px 20px;
+    margin: 20px 0;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+.no-results p {
+    margin: 0;
+    font-size: 1.2em;
+    color: #6c757d;
+}
