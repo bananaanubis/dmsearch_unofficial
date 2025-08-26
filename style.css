@@ -128,14 +128,13 @@ button {
     user-select: none;
     text-align: center;
 }
-/* --- 詳細検索エリアの表示/非表示制御 (アニメーション付き) --- */
+/* --- 詳細検索エリアの表示/非表示制御 (max-height版) --- */
 #advanced-search-area {
-    /* heightではなく、grid-template-rows をアニメーションさせる */
-    display: grid;
-    grid-template-rows: 0fr; /* ★初期状態では、中身の高さを0にする */
-    transition: grid-template-rows 0.4s ease-out; /* ★アニメーションを設定 (0.4秒かけて開閉) */
-    overflow: hidden; /* はみ出した要素を隠す */
+    max-height: 0; /* ★初期状態では、最大の高さを0にする */
+    overflow: hidden; /* ★はみ出した要素を完全に隠す */
+    transition: max-height 0.5s cubic-bezier(0, 1, 0, 1); /* ★アニメーションを設定 */
     margin-top: 15px;
+    /* display: block; は、元の状態に戻るので不要 */
 }
 
 #advanced-search-area > div {
@@ -144,9 +143,11 @@ button {
 }
 
 #advanced-search-area.is-open {
-    grid-template-rows: 1fr; /* ★is-openクラスが付いたら、中身の高さを1fr(自動)にする */
+    /* ★is-openクラスが付いたら、最大の高さを十分に大きな値にする */
+    /* この値は、中身がどれだけ大きくなっても収まるように、余裕を持った値に設定する */
+    max-height: 2000px; 
+    transition: max-height 1s ease-in-out; /* 開くときは少しゆっくり */
 }
-
 /* --- ラベルの左寄せ専用スタイル --- */
 .left-align-label {
     display: block; 
