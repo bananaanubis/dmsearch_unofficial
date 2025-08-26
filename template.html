@@ -8,6 +8,12 @@
 <body>
 <h2 style="text-align:center;">カード一覧</h2>
 
+<!-- ▼▼▼ 検索結果件数表示 ▼▼▼ -->
+<div class="search-results-summary">
+    <p><?= htmlspecialchars($total) ?>枚</p>
+</div>
+<!-- ▲▲▲ 検索結果件数表示 END ▲▲▲ -->
+
 <!-- ▼▼▼ FORM ▼▼▼ -->
 <form method="get" id="searchForm">
 
@@ -90,7 +96,7 @@
                 </div>
             </div>
 
-            <!-- コスト検索エリア -->
+            <!-- (中略: 他の詳細検索フォームは変更なし) -->
             <div class="search-group-container">
                 <label class="search-label left-align-label">コスト</label>
                 <div class="search-group center-content">
@@ -101,16 +107,10 @@
                     </div>
                 </div>
                 <div class="search-group">
-                    <label class="checkbox-label-inline ">
-                        <input type="checkbox" name="cost_zero" id="cost_zero_check" value="1" <?= $cost_zero ? 'checked' : '' ?>>
-                        コストなし
-                    </label>
-                    <label class="checkbox-label-inline ">
-                        <input type="checkbox" name="cost_infinity" id="cost_infinity_check" value="1" <?= $cost_infinity ? 'checked' : '' ?>>
-                        コスト無限
-                    </label>
+                    <label class="checkbox-label-inline "><input type="checkbox" name="cost_zero" id="cost_zero_check" value="1" <?= $cost_zero ? 'checked' : '' ?>> コストなし</label>
+                    <label class="checkbox-label-inline "><input type="checkbox" name="cost_infinity" id="cost_infinity_check" value="1" <?= $cost_infinity ? 'checked' : '' ?>> コスト無限</label>
                 </div>
-            </div>      
+            </div>
             <div class="search-group-container">
                 <label class="search-label left-align-label">パワー</label>
                 <div class="search-group center-content">
@@ -121,10 +121,7 @@
                     </div>
                 </div>
                 <div class="search-group">
-                    <label class="checkbox-label-inline">
-                        <input type="checkbox" name="pow_infinity" id="pow_infinity_check" value="1" <?= $pow_infinity ? 'checked' : '' ?>>
-                        パワー無限
-                    </label>
+                    <label class="checkbox-label-inline"><input type="checkbox" name="pow_infinity" id="pow_infinity_check" value="1" <?= $pow_infinity ? 'checked' : '' ?>> パワー無限</label>
                 </div>
             </div>
             <div class="search-group-container">
@@ -137,10 +134,7 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 特殊タイプ & カードタイプ検索エリア -->
             <div class="search-group-container">
-                <!-- (中略: この中のドロップダウンリスト群は変更なし) -->
                 <div class="search-group">
                     <div class="select-group">
                         <label class="search-label">特殊タイプ</label>
@@ -297,14 +291,13 @@
         <br>
         <button type="button" id="resetBtn">リセット</button>
     </div>
-    <!-- ▲▲▲ 中央揃えコンテナの終了 ▲▲▲ -->
     
     <input type="hidden" id="sort-order-hidden" name="sort_order" value="<?= htmlspecialchars($selected_sort) ?>">
     <div id="sort-area">
         <div class="sort-areaLeft">
             <p>ならびかえ</p>
             <div class="select01">
-                <select id="sort-order" class="is-empty2"> <!-- ★name属性は不要, idは維持 -->
+                <select id="sort-order" class="is-empty2">
                     <option value="release_new" <?= ($selected_sort == 'release_new') ? 'selected' : '' ?>>発売日の新しい順</option>
                     <option value="release_old" <?= ($selected_sort == 'release_old') ? 'selected' : '' ?>>発売日の古い順</option>
                     <option value="name_asc" <?= ($selected_sort == 'name_asc') ? 'selected' : '' ?>>カード名の昇順</option>
@@ -323,20 +316,24 @@
             </div>
         </div>
     </div>
-    <!-- ▲▲▲ 並び替えとフィルターのセクション終了 ▲▲▲ -->
-</form> <!-- ★★★ 閉じタグは、ここに一つだけ！ ★★★ -->
+</form>
 <!-- ▲▲▲ FORM END ▲▲▲ -->
 
-<!-- (中略: CARD LIST, PAGINATION, MODAL の部分は変更なし) -->
 <!-- ▼▼▼ CARD LIST ▼▼▼ -->
 <div class="container">
-    <div class="card-grid">
-        <?php foreach ($cards as $card): ?>
-            <div class="card">
-                <img src="<?= htmlspecialchars($card['image_url']) ?>" alt="カード画像" class="card-image-item" data-card-id="<?= $card['card_id'] ?>">
-            </div>
-        <?php endforeach; ?>
-    </div>
+    <?php if ($total > 0): ?>
+        <div class="card-grid">
+            <?php foreach ($cards as $card): ?>
+                <div class="card">
+                    <img src="<?= htmlspecialchars($card['image_url']) ?>" alt="カード画像" class="card-image-item" data-card-id="<?= $card['card_id'] ?>">
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php else: ?>
+        <div class="no-results">
+            <p>検索条件に該当するカードがみつかりませんでした。</p>
+        </div>
+    <?php endif; ?>
 </div>
 <!-- ▲▲▲ CARD LIST END ▲▲▲ -->
 
