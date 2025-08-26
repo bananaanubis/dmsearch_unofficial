@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ① 操作する要素をまとめて取得 ---
     const searchForm = document.getElementById('searchForm');
-    const resetBtn = document.getElementById('resetBtn');
+    const resetButton = document.querySelectorAll('#resetBtn, #resetBtnBottom');
     const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
     const advancedSearchArea = document.getElementById('advanced-search-area');
     const advancedStateInput = document.getElementById('advanced-state');
@@ -237,7 +237,18 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCivilizationControls();
         if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
     }
+        // ★★★ 複数のボタンに、同じ関数をまとめて割り当てる ★★★
+    if (resetButton.length > 0) {
+        resetButton.forEach(button => {
+            button.addEventListener('click', resetSearch);
+        });
+    }
     if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            resetSearch();
+        });
+    }
+    if (resetBtnBottom) {
         resetBtn.addEventListener('click', () => {
             resetSearch();
         });
