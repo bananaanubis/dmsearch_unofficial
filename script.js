@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const goodsSelect = document.querySelector('select[name="goods_id_filter"]');
     const sortOrderSelect = document.getElementById('sort-order');
     const sortOrderHiddenInput = document.getElementById('sort-order-hidden');
+    const resultsContainer = document.querySelector('.container');
     const showSameNameCheck = document.getElementById('show-same-name-check');
 
     // --- ② メインの制御関数 ---
@@ -127,6 +128,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showSameNameCheck && searchForm) {
         showSameNameCheck.addEventListener('change', () => {
             searchForm.submit();
+        });
+    }
+    // フォームが送信された時に、検索結果へスクロールする
+    if (searchForm && resultsContainer) {
+        searchForm.addEventListener('submit', (e) => {
+            // フォームの通常の送信を妨げないように、少しだけ遅延させてスクロールを実行
+            setTimeout(() => {
+                resultsContainer.scrollIntoView({
+                    behavior: 'smooth', // スムーズにスクロール
+                    block: 'start'      // 要素の上端に合わせる
+                });
+            }, 100); // 100ミリ秒の遅延
         });
     }
     // --- ④ リセットボタンのイベントリスナー (安定版) ---
