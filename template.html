@@ -33,7 +33,11 @@
             <label><input type="checkbox" name="search_illus" <?= $search_illus ? 'checked' : '' ?>> イラストレーター</label>
             <button type="button" id="toggleBtn">全解除</button>
         </div>
-        
+              
+        <br>
+        <button type="submit">検索</button>
+        <br>
+        <button type="button" id="resetBtn">リセット</button>
         <p class="detailBtn" id="toggle-advanced-btn">
             <?= $is_advanced_open ? '条件を隠す' : 'さらに条件をしぼる' ?>
         </p>
@@ -284,12 +288,12 @@
                     </div>
                 </div>
             </div>
+            <div class="advanced-buttons-bottom">
+                <button type="submit">検索</button>
+                <button type="button" id="resetBtnBottom">リセット</button>
+            </div>
         </div>
-        
-        <br>
-        <button type="submit">検索</button>
-        <br>
-        <button type="button" id="resetBtn">リセット</button>
+
     </div>
     
     <input type="hidden" id="sort-order-hidden" name="sort_order" value="<?= htmlspecialchars($selected_sort) ?>">
