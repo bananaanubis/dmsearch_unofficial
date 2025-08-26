@@ -2,15 +2,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- ① 操作する要素をまとめて取得 ---
-    const resultsContainer = document.querySelector('.container');
-    const urlParams = new URLSearchParams(window.location.search);
-    // URLに 'search' パラメータなどが含まれている場合（＝検索が実行された後）
-    if (resultsContainer && (urlParams.has('search') || urlParams.has('cost_min') || urlParams.has('rarity_id'))) {
-        resultsContainer.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
-    }
     const searchForm = document.getElementById('searchForm');
     const resetBtn = document.getElementById('resetBtn');
     const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
@@ -36,6 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const sortOrderHiddenInput = document.getElementById('sort-order-hidden');
     const showSameNameCheck = document.getElementById('show-same-name-check');
 
+    // --- 非同期更新で差し替える要素 ---
+    const resultsContainer = document.querySelector('.container');
+    const paginationContainer = document.querySelector('.pagination');
+    const resultsSummary = document.querySelector('.search-results-summary p');
+
     // --- ② メインの制御関数 ---
     function updateCivilizationControls() {
         if (!multiColorBtn || mainCivButtons.length === 0) return;
@@ -52,7 +48,93 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- ③ イベントリスナーの設定 (リセットボタン以外) ---
+    // --- ★★★ 非同期検索の心臓部 ★★★ ---
+    function performSearch(url) {
+        // ローディング表示などをここに追加することも可能
+        if (resultsContainer) {
+            resultsContainer.style.opacity = '0.5'; // 検索中に半透明にする
+        }
+        
+        fetch(url)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                const newResultsContainer = doc.querySelector('.container');
+                const newPagination = doc.querySelector('.pagination');
+                const newSummary = doc.querySelector('.search-results-summary p');
+
+                if (resultsSummary && newSummary) {
+                    resultsSummary.innerHTML = newSummary.innerHTML;
+                }
+                if (resultsContainer && newResultsContainer) {
+                    resultsContainer.innerHTML = newResultsContainer.innerHTML;
+                }
+                if (paginationContainer) {
+                    if (newPagination) {
+                        paginationContainer.innerHTML = newPagination.innerHTML;
+                        paginationContainer.style.display = 'block';
+                    } else {
+                        paginationContainer.innerHTML = '';
+                        paginationContainer.style.display = 'none';
+                    }
+                }
+
+                if (resultsContainer) {
+                    // 初回検索時以外はスクロール
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.toString() !== '') {
+                        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    resultsContainer.style.opacity = '1'; // 透明度を戻す
+                }
+            })
+            .catch(error => {
+                console.error('Fetch Error:', error);
+                if(resultsContainer) {
+                    resultsContainer.innerHTML = "<p style='text-align:center; color: red;'>検索中にエラーが発生しました。</p>";
+                    resultsContainer.style.opacity = '1';
+                }
+            });
+    }
+
+    // --- ③ イベントリスナーの設定 ---
+    if (searchForm) {
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(searchForm);
+            // ページ番号をリセットして検索
+            formData.set('page', '1');
+            const params = new URLSearchParams(formData);
+            const newUrl = `${window.location.pathname}?${params.toString()}`;
+            history.pushState({path: newUrl}, '', newUrl);
+            performSearch(newUrl);
+        });
+    }
+
+    const triggerSearch = () => {
+        if(searchForm) searchForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    };
+
+    if (sortOrderSelect) {
+        sortOrderSelect.addEventListener('change', () => {
+            if (sortOrderHiddenInput) sortOrderHiddenInput.value = sortOrderSelect.value;
+            triggerSearch();
+        });
+    }
+    if (showSameNameCheck) {
+        showSameNameCheck.addEventListener('change', triggerSearch);
+    }
+    document.body.addEventListener('click', (e) => {
+        const paginationLink = e.target.closest('.pagination a');
+        if(!paginationLink || paginationLink.classList.contains('current-page')) return;
+        e.preventDefault();
+        const newUrl = paginationLink.href;
+        history.pushState({path: newUrl}, '', newUrl);
+        performSearch(newUrl);
+    });
+
     if (toggleAdvancedBtn) {
         toggleAdvancedBtn.addEventListener('click', () => {
             const isOpen = advancedSearchArea.classList.toggle('is-open');
@@ -74,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const setupCheckboxToggle = (check1, check2, input1, input2) => {
         const toggleInputs = () => {
-            const disable = check1.checked || (check2 && check2.checked);
+            const disable = (check1 && check1.checked) || (check2 && check2.checked);
             if(input1) input1.disabled = disable;
             if(input2) input2.disabled = disable;
             if (disable) {
@@ -82,13 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(input2) input2.value = '';
             }
         };
-        check1.addEventListener('change', () => {
-            if (check1.checked && check2) check2.checked = false;
-            toggleInputs();
-        });
+        if(check1) {
+            check1.addEventListener('change', () => {
+                if (check1.checked && check2) check2.checked = false;
+                toggleInputs();
+            });
+        }
         if (check2) {
             check2.addEventListener('change', () => {
-                if (check2.checked) check1.checked = false;
+                if (check2.checked && check1) check1.checked = false;
                 toggleInputs();
             });
         }
@@ -115,12 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCivilizationControls();
         });
     }
-    if (sortOrderSelect) {
-        sortOrderSelect.addEventListener('change', () => {
-            if (sortOrderHiddenInput) sortOrderHiddenInput.value = sortOrderSelect.value;
-            if (searchForm) searchForm.submit();
-        });
-    }
     function updateToggleButtonLabel() {
         if (!toggleBtn) return;
         toggleBtn.textContent = [...searchCheckboxes].some(cb => cb.checked) ? '全解除' : '全選択';
@@ -132,70 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
-    // 同名カード表示チェックボックスが変更されたら、フォームを送信
-    if (showSameNameCheck && searchForm) {
-        showSameNameCheck.addEventListener('change', () => {
-            searchForm.submit();
-        });
-    }
 
-    // --- ④ リセットボタンのイベントリスナー (安定版) ---
+    // --- ④ リセットボタンのイベントリスナー ---
     function resetSearch() {
-        // テキスト入力
-        const searchInput = document.querySelector('input[name="search"]');
-        if (searchInput) searchInput.value = "";
-
-        // コスト
-        if (costMinInput) costMinInput.value = "";
-        if (costMaxInput) costMaxInput.value = "";
-        if (costZeroCheck) costZeroCheck.checked = false;
-        if (costInfinityCheck) costInfinityCheck.checked = false;
-        if (costMinInput) costMinInput.disabled = false;
-        if (costMaxInput) costMaxInput.disabled = false;
-
-        // パワー
-        if (powMinInput) powMinInput.value = "";
-        if (powMaxInput) powMaxInput.value = "";
-        if (powInfinityCheck) powInfinityCheck.checked = false;
-        if (powMinInput) powMinInput.disabled = false;
-        if (powMaxInput) powMaxInput.disabled = false;
-
-        // 発売年
-        const yearMinInput = document.querySelector('input[name="year_min"]');
-        const yearMaxInput = document.querySelector('input[name="year_max"]');
-        if (yearMinInput) yearMinInput.value = "";
-        if (yearMaxInput) yearMaxInput.value = "";
-
-        // ドロップダウン
-        document.querySelectorAll('select.styled-select').forEach(select => {
-             const name = select.name;
-             if (name === 'mana_filter') select.value = 'all';
-             else if (select.id === 'sort-order') select.value = 'release_new';
-             else select.value = '0';
-        });
-        if(sortOrderHiddenInput) sortOrderHiddenInput.value = 'release_new';
-
-        // 商品名リストの連動機能をトリガー
-        if (goodsTypeSelect) {
-            goodsTypeSelect.dispatchEvent(new Event('change'));
-        }
-
-        // 検索対象チェックボックス
-        const searchName = document.querySelector('input[name="search_name"]');
-        const searchReading = document.querySelector('input[name="search_reading"]');
-        const searchText = document.querySelector('input[name="search_text"]');
-        const searchRace = document.querySelector('input[name="search_race"]');
-        const searchFlavortext = document.querySelector('input[name="search_flavortext"]');
-        const searchIllus = document.querySelector('input[name="search_illus"]');
-        if (searchName) searchName.checked = true;
-        if (searchReading) searchReading.checked = true;
-        if (searchText) searchText.checked = true;
-        if (searchRace) searchRace.checked = false;
-        if (searchFlavortext) searchFlavortext.checked = false;
-        if (searchIllus) searchIllus.checked = false;
-        updateToggleButtonLabel();
-
-        // 文明ボタン
+        if (searchForm) searchForm.reset();
         document.querySelectorAll('.civ-btn').forEach(button => {
             const targetInput = document.getElementById(button.dataset.targetInput);
             const buttonId = button.dataset.targetInput;
@@ -207,12 +225,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (targetInput) targetInput.value = '0';
             }
         });
+        const searchName = document.querySelector('input[name="search_name"]');
+        const searchReading = document.querySelector('input[name="search_reading"]');
+        const searchText = document.querySelector('input[name="search_text"]');
+        if(searchName) searchName.checked = true;
+        if(searchReading) searchReading.checked = true;
+        if(searchText) searchText.checked = true;
+        if (showSameNameCheck) showSameNameCheck.checked = true;
 
-        // 最後にUIの状態を更新
+        updateToggleButtonLabel();
         updateCivilizationControls();
+        if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
     }
     if (resetBtn) {
-        resetBtn.addEventListener('click', resetSearch);
+        resetBtn.addEventListener('click', () => {
+            resetSearch();
+            triggerSearch();
+        });
     }
     
     // --- ⑤ 初期化処理 ---
@@ -228,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalCardName = document.getElementById('modal-card-name');
         const modalCardsContainer = document.getElementById('modal-cards-container');
         const modalCardTemplate = document.getElementById('modal-card-template');
-
         let scrollTimeout;
         const updateModalHeaderOnScroll = () => {
             const cardInstances = modalCardsContainer.querySelectorAll('.modal-card-instance');
@@ -246,13 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalCardName.textContent = topVisibleCardName;
             }
         };
-
         modalCardsContainer.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(updateModalHeaderOnScroll, 50);
         });
-
-        cardGrid.addEventListener('click', (e) => {
+        document.body.addEventListener('click', (e) => { // cardGridからbodyに変更
             const cardImage = e.target.closest('.card-image-item');
             if (!cardImage) return;
             const cardId = cardImage.dataset.cardId;
@@ -261,7 +287,6 @@ document.addEventListener('DOMContentLoaded', () => {
             modalCardsContainer.innerHTML = ''; 
             modalCardName.textContent = '読み込み中...';
             modal.style.display = 'flex';
-
             fetch(`get_card_details.php?id=${cardId}`)
                 .then(response => {
                     if (!response.ok) throw new Error('Network response was not ok');
@@ -274,16 +299,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         modalCardsContainer.innerHTML = '<p style="text-align:center;">カード情報の取得に失敗しました。</p>';
                         return;
                     }
-                    
                     modalCardName.textContent = data.set_name || data.cards[0].card_name;
-
                     data.cards.forEach((cardInfo, index) => {
                         const templateClone = modalCardTemplate.content.cloneNode(true);
                         const cardInstance = templateClone.querySelector('.modal-card-instance');
                         cardInstance.dataset.cardName = cardInfo.card_name;
-
                         const part = String.fromCharCode(97 + index);
-
                         templateClone.querySelector('.modal-card-type').textContent = cardInfo.card_type;
                         templateClone.querySelector('.modal-civilization').textContent = cardInfo.civilization;
                         templateClone.querySelector('.modal-rarity').textContent = cardInfo.rarity;
@@ -292,14 +313,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         templateClone.querySelector('.modal-mana').textContent = cardInfo.mana ?? '---';
                         templateClone.querySelector('.modal-race').textContent = cardInfo.race;
                         templateClone.querySelector('.modal-illustrator').textContent = cardInfo.illustrator;
-
                         let imageUrl = `card/${cardInfo.modelnum}.webp`;
                         if (data.is_set && data.image_urls && data.image_urls[part]) {
                             imageUrl = data.image_urls[part];
                         }
                         templateClone.querySelector('.modal-card-image').src = imageUrl;
                         templateClone.querySelector('.modal-card-image').alt = cardInfo.card_name;
-                        
                         const textSection = templateClone.querySelector('.modal-ability-section');
                         let abilityText = data.is_set ? 
                             ((data.texts && data.texts[part]) ? formatAbilityText(data.texts[part]) : '（テキスト情報なし）') : 
@@ -308,7 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             templateClone.querySelector('.modal-text').innerHTML = abilityText;
                             textSection.style.display = 'block';
                         }
-
                         const flavorSection = templateClone.querySelector('.modal-flavor-section');
                         let flavorText = data.is_set ? 
                             ((data.flavortexts && data.flavortexts[part]) ? formatFlavorText(data.flavortexts[part]) : null) :
@@ -317,10 +335,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             templateClone.querySelector('.modal-flavortext').innerHTML = flavorText;
                             flavorSection.style.display = 'block';
                         }
-                        
                         modalCardsContainer.appendChild(templateClone);
                     });
-
                     if (data.is_set && data.cards.length > 0) {
                         modalCardName.textContent = data.cards[0].card_name;
                     }
@@ -331,54 +347,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     modalCardsContainer.innerHTML = '<p style="text-align:center;">通信エラーが発生しました。</p>';
                 });
         });
-
         function formatAbilityText(rawText) {
             if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
-            
             const iconMap = {
-                '{ST}': '<img src="parts/card_list_strigger.webp" class="text-icon">',
-                '{BR}': '<img src="parts/card_list_block.webp" class="text-icon">',
-                '{SV}': '<img src="parts/card_list_survivor.webp" class="text-icon">',
+                '{st}': '<img src="parts/card_list_strigger.webp" class="text-icon">',
+                '{br}': '<img src="parts/card_list_block.webp" class="text-icon">',
+                '{sv}': '<img src="parts/card_list_survivor.webp" class="text-icon">',
                 '{TT}': '<img src="parts/card_list_taptrigger.webp" class="text-icon">',
-                '{TR}': '<img src="parts/card_list_turborush.webp" class="text-icon">'
+                '{TR}': '<img src="parts/card_list_turborush.webp" class="text-icon">',
             };
             const iconTags = Object.keys(iconMap);
-        
             return rawText.split('\n').map(line => {
                 let trimmed = line.trim();
                 if (trimmed === '') return null;
-                
-                // 1. 各種フラグをチェック
-                const isIndented = trimmed.startsWith('{TAB}');
-                if (isIndented) {
-                    trimmed = trimmed.substring(5).trim();
-                }
-        
+                const isIndented = trimmed.startsWith('{tab}');
+                if (isIndented) { trimmed = trimmed.substring(5).trim(); }
                 const startsWithIcon = iconTags.some(tag => trimmed.startsWith(tag));
                 const isParenthetical = trimmed.startsWith('(') && trimmed.endsWith(')');
-        
-                // 2. HTMLエスケープとアイコン置換
                 let processedLine = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 for (const tag of iconTags) {
                     processedLine = processedLine.replace(new RegExp(tag.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), iconMap[tag]);
                 }
-                
-                // 3. 行頭記号と字下げクラスを決定
                 let prefix = '';
                 let wrapperClass = '';
-        
                 if (isIndented) {
                     wrapperClass = ' class="indented-text"';
-                    if (!startsWithIcon) {
-                        prefix = '▶ ';
-                    }
+                    if (!startsWithIcon) { prefix = '▶ '; }
                 } else if (!startsWithIcon && !isParenthetical) {
                     prefix = '■ ';
                 }
-        
-                // 4. 最終的なHTMLを組み立てる
                 return `<span${wrapperClass}>${prefix}${processedLine}</span>`;
-        
             }).filter(line => line !== null).join('<br>');
         }
         function formatFlavorText(rawText) {
@@ -386,11 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
              const escaped = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
              return escaped.replace(/\n/g, '<br>');
         }
-
         const closeModal = () => {
             if (modal) modal.style.display = 'none';
         };
-
         if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
         if (modalOverlay) modalOverlay.addEventListener('click', (e) => {
             if (e.target === modalOverlay) closeModal();
