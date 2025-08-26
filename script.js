@@ -2,6 +2,15 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- ① 操作する要素をまとめて取得 ---
+    const resultsContainer = document.querySelector('.container');
+    const urlParams = new URLSearchParams(window.location.search);
+    // URLに 'search' パラメータなどが含まれている場合（＝検索が実行された後）
+    if (resultsContainer && (urlParams.has('search') || urlParams.has('cost_min') || urlParams.has('rarity_id'))) {
+        resultsContainer.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }
     const searchForm = document.getElementById('searchForm');
     const resetBtn = document.getElementById('resetBtn');
     const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
@@ -25,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const goodsSelect = document.querySelector('select[name="goods_id_filter"]');
     const sortOrderSelect = document.getElementById('sort-order');
     const sortOrderHiddenInput = document.getElementById('sort-order-hidden');
-    const resultsContainer = document.querySelector('.container');
     const showSameNameCheck = document.getElementById('show-same-name-check');
 
     // --- ② メインの制御関数 ---
@@ -130,18 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             searchForm.submit();
         });
     }
-    // フォームが送信された時に、検索結果へスクロールする
-    if (searchForm && resultsContainer) {
-        searchForm.addEventListener('submit', (e) => {
-            // フォームの通常の送信を妨げないように、少しだけ遅延させてスクロールを実行
-            setTimeout(() => {
-                resultsContainer.scrollIntoView({
-                    behavior: 'smooth', // スムーズにスクロール
-                    block: 'start'      // 要素の上端に合わせる
-                });
-            }, 100); // 100ミリ秒の遅延
-        });
-    }
+
     // --- ④ リセットボタンのイベントリスナー (安定版) ---
     function resetSearch() {
         // テキスト入力
