@@ -34,7 +34,13 @@
             <button type="button" id="toggleBtn">全解除</button>
         </div>
         
-        <p class="detailBtn" id="toggle-advanced-btn">
+        
+        <br>
+        <button type="submit">検索</button>
+        <br>
+        <button type="button" id="resetBtn">リセット</button>
+        <br>
+            <p class="detailBtn" id="toggle-advanced-btn">
             <?= $is_advanced_open ? '条件を隠す' : 'さらに条件をしぼる' ?>
         </p>
         
@@ -285,11 +291,7 @@
                 </div>
             </div>
         </div>
-        
-        <br>
-        <button type="submit">検索</button>
-        <br>
-        <button type="button" id="resetBtn">リセット</button>
+
     </div>
     
     <input type="hidden" id="sort-order-hidden" name="sort_order" value="<?= htmlspecialchars($selected_sort) ?>">
