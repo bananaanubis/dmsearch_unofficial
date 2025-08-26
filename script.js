@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ① 操作する要素をまとめて取得 ---
     const searchForm = document.getElementById('searchForm');
-    const resetButton = document.querySelectorAll('#resetBtn, #resetBtnBottom');
+    const resetButtons = document.querySelectorAll('.reset-button'); // ★ classでまとめて取得
     const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
     const advancedSearchArea = document.getElementById('advanced-search-area');
     const advancedStateInput = document.getElementById('advanced-state');
@@ -50,9 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ★★★ 非同期検索の心臓部 ★★★ ---
     function performSearch(url) {
-        // ローディング表示などをここに追加することも可能
         if (resultsContainer) {
-            resultsContainer.style.opacity = '0.5'; // 検索中に半透明にする
+            resultsContainer.style.opacity = '0.5';
         }
         
         fetch(url)
@@ -82,12 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (resultsContainer) {
-                    // 初回検索時以外はスクロール
-                    const urlParams = new URLSearchParams(window.location.search);
-                    if (urlParams.toString() !== '') {
+                    const urlParams = new URL(url, window.location.origin);
+                    if (urlParams.search !== '') {
                         resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
-                    resultsContainer.style.opacity = '1'; // 透明度を戻す
+                    resultsContainer.style.opacity = '1';
                 }
             })
             .catch(error => {
@@ -98,13 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
     }
+    
+    const triggerSearch = () => {
+        if(searchForm) searchForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    };
 
     // --- ③ イベントリスナーの設定 ---
     if (searchForm) {
         searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const formData = new FormData(searchForm);
-            // ページ番号をリセットして検索
             formData.set('page', '1');
             const params = new URLSearchParams(formData);
             const newUrl = `${window.location.pathname}?${params.toString()}`;
@@ -112,10 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
             performSearch(newUrl);
         });
     }
-
-    const triggerSearch = () => {
-        if(searchForm) searchForm.dispatchEvent(new Event('submit', { cancelable: true }));
-    };
 
     if (sortOrderSelect) {
         sortOrderSelect.addEventListener('change', () => {
@@ -211,12 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
 
-    // --- ④ リセットボタンのイベントリスナー ---
+    // --- ④ リセットボタンのイベントリスナー (最終版) ---
     function resetSearch() {
         if (searchForm) searchForm.reset();
         document.querySelectorAll('.civ-btn').forEach(button => {
-            const targetInput = document.getElementById(button.dataset.targetInput);
             const buttonId = button.dataset.targetInput;
+            const targetInput = document.getElementById(buttonId);
             if (buttonId === 'mono_color' || buttonId === 'multi_color') {
                 button.classList.remove('is-off');
                 if (targetInput) targetInput.value = '1';
@@ -232,25 +229,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if(searchReading) searchReading.checked = true;
         if(searchText) searchText.checked = true;
         if (showSameNameCheck) showSameNameCheck.checked = true;
-
         updateToggleButtonLabel();
         updateCivilizationControls();
         if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
     }
-        // ★★★ 複数のボタンに、同じ関数をまとめて割り当てる ★★★
-    if (resetButton.length > 0) {
-        resetButton.forEach(button => {
-            button.addEventListener('click', resetSearch);
-        });
-    }
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            resetSearch();
-        });
-    }
-    if (resetBtnBottom) {
-        resetBtn.addEventListener('click', () => {
-            resetSearch();
+    
+    if (resetButtons.length > 0) {
+        resetButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                resetSearch();
+                triggerSearch();
+            });
         });
     }
     
@@ -261,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ⑥ モーダル機能 ---
     const cardGrid = document.querySelector('.card-grid');
     const modal = document.getElementById('card-modal');
-    if (cardGrid && modal) {
+    if (modal) {
         const modalCloseBtn = document.getElementById('modal-close-btn');
         const modalOverlay = document.querySelector('.modal-overlay');
         const modalCardName = document.getElementById('modal-card-name');
@@ -288,7 +277,8 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(updateModalHeaderOnScroll, 50);
         });
-        document.body.addEventListener('click', (e) => { // cardGridからbodyに変更
+        
+        document.body.addEventListener('click', (e) => {
             const cardImage = e.target.closest('.card-image-item');
             if (!cardImage) return;
             const cardId = cardImage.dataset.cardId;
@@ -357,14 +347,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     modalCardsContainer.innerHTML = '<p style="text-align:center;">通信エラーが発生しました。</p>';
                 });
         });
+        
         function formatAbilityText(rawText) {
             if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
             const iconMap = {
-                '{st}': '<img src="parts/card_list_strigger.webp" class="text-icon">',
-                '{br}': '<img src="parts/card_list_block.webp" class="text-icon">',
-                '{sv}': '<img src="parts/card_list_survivor.webp" class="text-icon">',
-                '{TT}': '<img src="parts/card_list_taptrigger.webp" class="text-icon">',
-                '{TR}': '<img src="parts/card_list_turborush.webp" class="text-icon">',
+                '{st}': '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
+                '{br}': '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
+                '{sv}': '<img src="parts/card_list_survivor.webp" alt="Survivor" class="text-icon">',
+                '{TT}': '<img src="parts/card_list_taptrigger.webp" alt="Tap-Trigger" class="text-icon">',
+                '{TR}': '<img src="parts/card_list_turborush.webp" alt="Turbo-Rush" class="text-icon">',
             };
             const iconTags = Object.keys(iconMap);
             return rawText.split('\n').map(line => {
@@ -394,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
              const escaped = rawText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
              return escaped.replace(/\n/g, '<br>');
         }
+        
         const closeModal = () => {
             if (modal) modal.style.display = 'none';
         };
