@@ -329,7 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 '{ST}': '<img src="parts/card_list_strigger.webp" class="text-icon">',
                 '{BR}': '<img src="parts/card_list_block.webp" class="text-icon">',
                 '{SV}': '<img src="parts/card_list_survivor.webp" class="text-icon">',
-                '{TT}': '<img src="parts/card_list_taptrigger.webp" class="text-icon">'
+                '{TT}': '<img src="parts/card_list_taptrigger.webp" class="text-icon">',
+                '{TR}': '<img src="parts/card_list_turborush.webp" class="text-icon">'
             };
             const iconTags = Object.keys(iconMap);
         
