@@ -128,17 +128,23 @@ button {
     user-select: none;
     text-align: center;
 }
-#toggle-advanced-btn.detailBtn:hover {
-    background-color: #5a6268;
-}
-
-/* --- 詳細検索エリアの表示/非表示制御 --- */
+/* --- 詳細検索エリアの表示/非表示制御 (アニメーション付き) --- */
 #advanced-search-area {
-    display: none;
+    /* heightではなく、grid-template-rows をアニメーションさせる */
+    display: grid;
+    grid-template-rows: 0fr; /* ★初期状態では、中身の高さを0にする */
+    transition: grid-template-rows 0.4s ease-out; /* ★アニメーションを設定 (0.4秒かけて開閉) */
+    overflow: hidden; /* はみ出した要素を隠す */
     margin-top: 15px;
 }
+
+#advanced-search-area > div {
+    /* この中にある直接の子要素（search-group-containerなど）が対象 */
+    min-height: 0; /* ★Safariなどでの表示崩れを防ぐためのおまじない */
+}
+
 #advanced-search-area.is-open {
-    display: block;
+    grid-template-rows: 1fr; /* ★is-openクラスが付いたら、中身の高さを1fr(自動)にする */
 }
 
 /* --- ラベルの左寄せ専用スタイル --- */
