@@ -456,3 +456,39 @@ h2 {
     font-size: 1.2em;
     color: #6c757d;
 }
+/* 画面幅が640px以下の場合に、この中のスタイルを適用する */
+@media screen and (max-width: 640px) {
+
+    /* --- カード一覧の列数を2列に変更 --- */
+    .card-grid {
+        grid-template-columns: repeat(2, 1fr); /* 5列から2列に変更 */
+        gap: 10px; /* カード間の余白を少し詰める */
+    }
+    
+    /* --- フォーム全体の幅を調整 --- */
+    input[type="text"],
+    .checkbox-container,
+    #sort-area,
+    .search-group-container {
+        width: 95%; /* 固定幅(960px)から、画面幅に対する割合(95%)に変更 */
+        max-width: none; /* max-widthの指定を解除 */
+    }
+
+    /* --- 検索ワード入力欄のフォントサイズを調整 --- */
+    input[type="text"] {
+        font-size: 16px;
+        height: 45px;
+    }
+
+    /* --- 検索対象チェックボックスのレイアウト調整 --- */
+    .checkbox-container {
+        flex-wrap: wrap; /* 折り返すようにする */
+        justify-content: center; /* 中央揃えにする */
+    }
+    .checkbox-container button {
+        margin-left: auto; /* 全解除ボタンを右端に */
+    }
+    
+    /* (必要であれば、他のフォーム要素のスタイルもここに追加していく) */
+    
+}
