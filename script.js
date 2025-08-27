@@ -208,12 +208,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.addEventListener('click', toggleCheckboxes);
     searchCheckboxes.forEach(cb => cb.addEventListener('change', updateToggleButtonLabel));
 
-    // --- ④ リセットボタンのイベントリスナー (最終版) ---
+    // --- ④ リセットボタンのイベントリスナー (最終確定版) ---
+
     function resetSearch() {
-        if (searchForm) searchForm.reset();
+        // 1. テキスト入力
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) searchInput.value = "";
+
+        // 2. 検索対象チェックボックス
+        if(document.querySelector('input[name="search_name"]')) document.querySelector('input[name="search_name"]').checked = true;
+        if(document.querySelector('input[name="search_reading"]')) document.querySelector('input[name="search_reading"]').checked = true;
+        if(document.querySelector('input[name="search_text"]')) document.querySelector('input[name="search_text"]').checked = true;
+        if(document.querySelector('input[name="search_race"]')) document.querySelector('input[name="search_race"]').checked = false;
+        if(document.querySelector('input[name="search_flavortext"]')) document.querySelector('input[name="search_flavortext"]').checked = false;
+        if(document.querySelector('input[name="search_illus"]')) document.querySelector('input[name="search_illus"]').checked = false;
+        
+        // 3. 文明ボタン
         document.querySelectorAll('.civ-btn').forEach(button => {
+            const targetInput = document.getElementById(button.dataset.targetInput);
             const buttonId = button.dataset.targetInput;
-            const targetInput = document.getElementById(buttonId);
             if (buttonId === 'mono_color' || buttonId === 'multi_color') {
                 button.classList.remove('is-off');
                 if (targetInput) targetInput.value = '1';
@@ -222,27 +235,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (targetInput) targetInput.value = '0';
             }
         });
-        const searchName = document.querySelector('input[name="search_name"]');
-        const searchReading = document.querySelector('input[name="search_reading"]');
-        const searchText = document.querySelector('input[name="search_text"]');
-        if(searchName) searchName.checked = true;
-        if(searchReading) searchReading.checked = true;
-        if(searchText) searchText.checked = true;
-        if (showSameNameCheck) showSameNameCheck.checked = true;
+
+        // 4. コスト
+        if (costMinInput) { costMinInput.value = ""; costMinInput.disabled = false; }
+        if (costMaxInput) { costMaxInput.value = ""; costMaxInput.disabled = false; }
+        if (costZeroCheck) costZeroCheck.checked = false;
+        if (costInfinityCheck) costInfinityCheck.checked = false;
+
+        // 5. パワー
+        if (powMinInput) { powMinInput.value = ""; powMinInput.disabled = false; }
+        if (powMaxInput) { powMaxInput.value = ""; powMaxInput.disabled = false; }
+        if (powInfinityCheck) powInfinityCheck.checked = false;
+
+        // 6. 発売年
+        const yearMinInput = document.querySelector('input[name="year_min"]');
+        const yearMaxInput = document.querySelector('input[name="year_max"]');
+        if (yearMinInput) yearMinInput.value = "";
+        if (yearMaxInput) yearMaxInput.value = "";
+        
+        // 7. その他詳細条件のドロップダウン
+        // 注意: 'sort-order' と 'goods_id_filter' は対象外にする
+        document.querySelectorAll('select.styled-select, select.is-empty2').forEach(select => {
+            if (select.id !== 'sort-order' && select.name !== 'goods_id_filter') {
+                 if (select.name === 'mana_filter') {
+                    select.value = 'all';
+                 } else {
+                    select.value = '0';
+                 }
+            }
+        });
+        
+        // 8. 最後にUIの状態を更新
         updateToggleButtonLabel();
         updateCivilizationControls();
-        if (goodsTypeSelect) goodsTypeSelect.dispatchEvent(new Event('change'));
+        
+        // 9. 商品名リストだけは、連動機能をトリガーしてリセット
+        if (goodsTypeSelect) {
+            goodsTypeSelect.dispatchEvent(new Event('change'));
+        }
     }
-    
+
     if (resetButtons.length > 0) {
         resetButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                resetSearch();
-                triggerSearch();
-            });
+            // ★★★ 再検索をトリガーしないように修正 ★★★
+            button.addEventListener('click', resetSearch);
         });
-    }
-    
+    }    
     // --- ⑤ 初期化処理 ---
     updateToggleButtonLabel();
     updateCivilizationControls();
