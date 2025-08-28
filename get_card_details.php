@@ -14,6 +14,7 @@ function format_text_for_display($raw_text, $is_ability) {
         '{SV}' => '<img src="parts/card_list_survivor.webp" alt="Survivor" class="text-icon">',
         '{TT}' => '<img src="parts/card_list_taptrigger.webp" alt="Tap-Trigger" class="text-icon">',
         '{TR}' => '<img src="parts/card_list_turborush.webp" alt="Turbo-Rush" class="text-icon">',
+        '{SS}' => '<img src="parts/card_list_silentskill.webp" alt="Silent_Skill" class="text-icon">',
     ];
 
     $lines = explode("\n", $raw_text);
