@@ -307,16 +307,29 @@ if (!empty($all_matching_card_ids)) {
 }
 
 // --- カード画像のパスを事前に処理する ---
-foreach ($cards as $key => $card) {
-    $image_path = "card/" . $card['modelnum'] . ".webp";
-    $folder_path = "card/" . $card['modelnum'];
-    
-    if ($card['modelnum'] && (!file_exists($image_path) || is_dir($folder_path))) {
-        $cards[$key]['image_url'] = $folder_path . "/" . $card['modelnum'] . "a.webp";
-    } else {
-        $cards[$key]['image_url'] = $image_path;
+foreach ($cards as $key => &$card) { // ★参照渡し(&)に変更
+    $modelnum = $card['modelnum'];
+    $image_url = ''; // デフォルトは空
+
+    if ($modelnum) {
+        // modelnumから商品型番（例: 'dm01'）を抽出
+        $parts = explode('-', $modelnum);
+        $series_folder = strtolower($parts[0]);
+        
+        $image_path = "card/" . $series_folder . "/" . $modelnum . ".webp";
+        $folder_path = "card/" . $series_folder . "/" . $modelnum;
+        
+        // modelnumに対応する画像ファイルが存在しないか、またはそれがフォルダである場合（＝セットカード）
+        if (!file_exists($image_path) || is_dir($folder_path)) {
+            $image_url = $folder_path . "/" . $modelnum . "a.webp";
+        } else {
+            // 通常のカードの場合
+            $image_url = $image_path;
+        }
     }
+    $card['image_url'] = $image_url;
 }
+unset($card); // ループ後の参照を解除
 
 // === テンプレート表示のための準備 ===
 $totalPages = ceil($total / $perPage);
