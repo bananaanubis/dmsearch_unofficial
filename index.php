@@ -198,11 +198,11 @@ if (!empty($civ_type_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_t
 if (!empty($civ_select_conditions)) { $conditions[] = '(' . implode(' OR ', $civ_select_conditions) . ')'; }
 if (!$cost_zero && !$cost_infinity && empty($civ_type_conditions) && empty($civ_select_conditions)) { $conditions[] = "1 = 0"; }
 
-// === SQLクエリの実行 (2段階取得アプローチ) ===
+// === SQLクエリの実行 (最終版: 高度なソート対応) ===
 $join_str = !empty($joins) ? implode(' ', array_unique($joins)) : '';
 $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
-// --- ステップ1: 条件に合うcard_idを、重複を許して全て取得する ---
+// --- ステップ1: 条件に合うcard_idを全て取得 ---
 $id_sql = "
     SELECT DISTINCT card.card_id
     FROM card
@@ -218,7 +218,7 @@ $cards = [];
 $total = 0;
 
 if (!empty($all_matching_card_ids)) {
-    // --- ステップ2: 取得したcard_idを元に、表示とソートに必要な全情報を取得 ---
+    // --- ステップ2: 取得したIDを元に、表示とソートに必要な全情報を取得 ---
     $placeholders = implode(',', array_fill(0, count($all_matching_card_ids), '?'));
     $details_sql = "
         SELECT 
@@ -236,7 +236,7 @@ if (!empty($all_matching_card_ids)) {
     $stmt->execute($all_matching_card_ids);
     $all_card_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // --- ステップ3: PHPで、同名/同modelnumの重複を排除する ---
+    // --- ステップ3: PHPで重複排除 ---
     $unique_cards = [];
     if ($show_same_name) {
         $unique_cards_by_modelnum = [];
@@ -257,15 +257,24 @@ if (!empty($all_matching_card_ids)) {
         $unique_cards = array_values($latest_cards_by_name);
     }
     
-    // --- ステップ4: 総件数の確定と、PHPでのソート ---
+    // --- ステップ4: 総件数の確定と、PHPでの高度なソート ---
     $total = count($unique_cards);
     usort($unique_cards, function($a, $b) use ($selected_sort) {
+        // --- 優先度2-4で使う、共通の比較ルールを先に定義 ---
         $rarity_cmp = ($b['rarity_id'] ?? 0) <=> ($a['rarity_id'] ?? 0);
-        $a_civ_count = $a['civ_count'] ?? 99; $b_civ_count = $b['civ_count'] ?? 99;
-        $civ_count_cmp = ($a_civ_count == 1 ? 0 : 1) <=> ($b_civ_count == 1 ? 0 : 1);
+        
+        // ★★★ ここが新しい文明ソートのロジック ★★★
+        $a_civ_count = $a['civ_count'] ?? 99; // 文明がないカードは最後に
+        $b_civ_count = $b['civ_count'] ?? 99;
+        // まず、文明の数で比較 (1が最も優先度が高い)
+        $civ_count_cmp = $a_civ_count <=> $b_civ_count;
+        // もし文明の数が同じなら、最小の文明IDで比較
         $min_civ_id_cmp = ($a['min_civ_id'] ?? 99) <=> ($b['min_civ_id'] ?? 99);
         $civ_cmp = $civ_count_cmp ?: $min_civ_id_cmp;
+        
         $id_cmp = $a['card_id'] <=> $b['card_id'];
+
+        // --- 優先度1のメインの比較ルール ---
         switch ($selected_sort) {
             case 'release_old': $main_cmp = strcmp($a['release_date'], $b['release_date']); break;
             case 'cost_desc': $main_cmp = ($b['cost'] ?? -1) <=> ($a['cost'] ?? -1); break;
@@ -276,10 +285,12 @@ if (!empty($all_matching_card_ids)) {
             case 'power_asc': $main_cmp = ($a['pow'] ?? -1) <=> ($b['pow'] ?? -1); break;
             default: $main_cmp = strcmp($b['release_date'], $a['release_date']); break;
         }
+        
+        // --- 最終的な優先順位で結果を返す ---
         return $main_cmp ?: $rarity_cmp ?: $civ_cmp ?: $id_cmp;
     });
 
-    // --- ステップ5: PHPでのページネーションと、文明情報の後付け ---
+    // --- ステップ5: PHPでのページネーションと、表示用文明情報の後付け ---
     $cards_on_page = array_slice($unique_cards, $offset, $perPage);
     if (!empty($cards_on_page)) {
         $card_ids_on_page = array_column($cards_on_page, 'card_id');
@@ -294,7 +305,6 @@ if (!empty($all_matching_card_ids)) {
         }
     }
 }
-
 
 // --- カード画像のパスを事前に処理する ---
 foreach ($cards as $key => $card) {
