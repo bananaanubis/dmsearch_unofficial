@@ -2,7 +2,36 @@
 header('Content-Type: application/json');
 require_once 'db_connect.php';
 
-// ★★★ すべてのテキスト処理を、この一つの関数に統合する ★★★
+// ★★★ ヘルパー関数は、ファイルの最初に一度だけ定義する ★★★
+function get_series_folder_from_modelnum($modelnum) {
+    if (!$modelnum || strpos($modelnum, '-') === false) {
+        return ''; // ハイフンがなければ、商品型番フォルダはないと判断
+    }
+    $parts = explode('-', $modelnum);
+    return strtolower($parts[0]);
+}
+
+function process_files_from_folder($modelnum, $file_type) {
+    if (!$modelnum) return [];
+    $series_folder = get_series_folder_from_modelnum($modelnum);
+    if (!$series_folder) return []; // 商品型番がなければフォルダもない
+    
+    $folder_path = $file_type . "/" . $series_folder . "/" . $modelnum;
+    if (!is_dir($folder_path)) return [];
+
+    $parts = [];
+    foreach (range('a', 'z') as $char) {
+        $file_path = $folder_path . "/" . $modelnum . $char . ".txt";
+        if (file_exists($file_path)) {
+            $content = file_get_contents($file_path);
+            $parts[$char] = ($content !== false) ? trim($content) : '';
+        } else {
+            break;
+        }
+    }
+    return $parts;
+}
+
 function format_text_for_display($raw_text, $is_ability) {
     if (!$raw_text || trim($raw_text) === '') {
         return $is_ability ? '（テキスト情報なし）' : null;
@@ -26,15 +55,10 @@ function format_text_for_display($raw_text, $is_ability) {
         $line_to_process = $trimmed_line; 
         
         if ($is_ability) {
-            // --- 能力テキストの場合の処理 ---
-            
-            // 1. 各種フラグをチェック
-            $isIndented = str_starts_with($line_to_process, '{TAB}');
+            $isIndented = str_starts_with($line_to_process, '{tab}');
             if ($isIndented) {
-                // {tab}自体は表示しないので、取り除く
                 $line_to_process = trim(substr($line_to_process, 5));
             }
-            
             $startsWithIcon = false;
             foreach (array_keys($icon_map) as $icon_tag) {
                 if (str_starts_with($line_to_process, $icon_tag)) {
@@ -43,51 +67,23 @@ function format_text_for_display($raw_text, $is_ability) {
                 }
             }
             $isParenthetical = str_starts_with($line_to_process, '(') && str_ends_with($line_to_process, ')');
-            
-            // 2. HTMLエスケープとアイコン置換
             $escaped_line = htmlspecialchars($line_to_process);
             $formatted_line = str_replace(array_keys($icon_map), array_values($icon_map), $escaped_line);
-            
-            // 3. 行頭記号と字下げクラスを決定
             $prefix = '';
             $wrapper_class = '';
-
             if ($isIndented) {
                 $wrapper_class = ' class="indented-text"';
-                if (!$startsWithIcon) {
-                    $prefix = '▶ ';
-                }
+                if (!$startsWithIcon) { $prefix = '▶ '; }
             } elseif (!$startsWithIcon && !$isParenthetical) {
                 $prefix = '■ ';
             }
-            
-            // 4. 最終的なHTMLを組み立てる
             $processed_lines[] = '<span' . $wrapper_class . '>' . $prefix . $formatted_line . '</span>';
-
         } else {
-            // --- フレーバーテキストの場合の処理 ---
             $processed_lines[] = htmlspecialchars($trimmed_line);
         }
     }
-    
     $final_text = implode('<br>', $processed_lines);
     return $is_ability ? $final_text : nl2br($final_text);
-}
-function process_files_from_folder($modelnum, $file_type) {
-    if (!$modelnum) return [];
-    $folder_path = $file_type . "/" . $modelnum;
-    if (!is_dir($folder_path)) return [];
-    $parts = [];
-    foreach (range('a', 'z') as $char) {
-        $file_path = $folder_path . "/" . $modelnum . $char . ".txt";
-        if (file_exists($file_path)) {
-            $content = file_get_contents($file_path);
-            $parts[$char] = ($content !== false) ? trim($content) : '';
-        } else {
-            break;
-        }
-    }
-    return $parts;
 }
 // ★★★ ヘルパー関数の定義はここまで ★★★
 
@@ -115,12 +111,14 @@ if ($set_info) {
 
     if (!empty($response['cards'])) {
         $modelnum = $response['cards'][0]['modelnum'] ?? null;
+        $series_folder = get_series_folder_from_modelnum($modelnum);
+        
         $response['texts'] = process_files_from_folder($modelnum, 'text');
         $response['flavortexts'] = process_files_from_folder($modelnum, 'flavortext');
         
         $image_urls = [];
-        if ($modelnum) {
-            $folder_path = "card/" . $modelnum;
+        if ($modelnum && $series_folder) {
+            $folder_path = "card/" . $series_folder . "/" . $modelnum;
             foreach (range('a', 'z') as $char) {
                 $file_path = $folder_path . "/" . $modelnum . $char . ".webp";
                 if (file_exists($file_path)) { $image_urls[$char] = $file_path; } 
@@ -147,6 +145,7 @@ if ($set_info) {
 foreach ($response['cards'] as &$card) {
     $current_card_id = $card['card_id'];
     $modelnum = $card['modelnum'] ?? null;
+    $series_folder = get_series_folder_from_modelnum($modelnum);
     
     // (中略: 種族、文明などの取得ロジックは変更なし)
     $stmt = $pdo->prepare("SELECT t.cardtype_name, c.characteristics_name, cc.characteristics_id FROM card_cardtype cc JOIN cardtype t ON cc.cardtype_id = t.cardtype_id LEFT JOIN characteristics c ON cc.characteristics_id = c.characteristics_id WHERE cc.card_id = ?");
@@ -173,14 +172,14 @@ foreach ($response['cards'] as &$card) {
     // 通常カードの場合のみ、テキストとフレーバーをここでフォーマット
     if (!$response['is_set']) {
         $text_from_file = null;
-        $single_text_file = $modelnum ? "text/" . $modelnum . ".txt" : null;
+        $single_text_file = ($modelnum && $series_folder) ? "text/" . $series_folder . "/" . $modelnum . ".txt" : null;
         if ($single_text_file && file_exists($single_text_file)) {
             $text_from_file = file_get_contents($single_text_file);
         }
         $card['text'] = format_text_for_display($text_from_file ?: ($card['text'] ?? ''), true);
 
         $flavor_from_file = null;
-        $single_flavor_file = $modelnum ? "flavortext/" . $modelnum . ".txt" : null;
+        $single_flavor_file = ($modelnum && $series_folder) ? "flavortext/" . $series_folder . "/" . $modelnum . ".txt" : null;
         if ($single_flavor_file && file_exists($single_flavor_file)) {
             $flavor_from_file = file_get_contents($single_flavor_file);
         }
