@@ -257,54 +257,67 @@ if (!empty($all_matching_card_ids)) {
         $unique_cards = array_values($latest_cards_by_name);
     }
     
-    // --- ステップ4: 総件数の確定と、PHPでの高度なソート ---
+// --- ステップ4: 総件数の確定と、PHPでの高度なソート ---
     $total = count($unique_cards);
     usort($unique_cards, function($a, $b) use ($selected_sort) {
-        // --- 優先度2-4で使う、共通の比較ルールを先に定義 ---
+        
+        // ★★★ここからが、新しい比較ロジック★★★
+        
+        // --- 優先度3: 文明の比較関数を定義 ---
+        function get_civ_priority($card) {
+            $civ_count = $card['civ_count'] ?? 99;
+            $min_civ_id = $card['min_civ_id'] ?? 99;
+            
+            if ($civ_count > 1) return 7; // 多色は最も優先度が低い(7)
+            if ($min_civ_id == 6) return 0; // 無色(ID:6)は最も優先度が高い(0)
+            if ($min_civ_id >= 1 && $min_civ_id <= 5) return $min_civ_id; // 光(1)から自然(5)
+            return 99; // その他（文明情報なしなど）は一番最後
+        }
+        $civ_cmp = get_civ_priority($a) <=> get_civ_priority($b);
+
+        // --- 優先度2と4の比較ルールを定義 ---
         $rarity_cmp = ($b['rarity_id'] ?? 0) <=> ($a['rarity_id'] ?? 0);
-        
-        // ★★★ ここが新しい文明ソートのロジック ★★★
-        $a_civ_count = $a['civ_count'] ?? 99; // 文明がないカードは最後に
-        $b_civ_count = $b['civ_count'] ?? 99;
-        // まず、文明の数で比較 (1が最も優先度が高い)
-        $civ_count_cmp = $a_civ_count <=> $b_civ_count;
-        // もし文明の数が同じなら、最小の文明IDで比較
-        $min_civ_id_cmp = ($a['min_civ_id'] ?? 99) <=> ($b['min_civ_id'] ?? 99);
-        $civ_cmp = $civ_count_cmp ?: $min_civ_id_cmp;
-        
         $id_cmp = $a['card_id'] <=> $b['card_id'];
 
         // --- 優先度1のメインの比較ルール ---
         switch ($selected_sort) {
-            case 'release_old': $main_cmp = strcmp($a['release_date'], $b['release_date']); break;
-            case 'cost_desc': $main_cmp = ($b['cost'] ?? -1) <=> ($a['cost'] ?? -1); break;
-            case 'cost_asc': $main_cmp = ($a['cost'] ?? -1) <=> ($b['cost'] ?? -1); break;
-            case 'name_asc': $main_cmp = strcmp($a['reading'], $b['reading']); break;
-            case 'name_desc': $main_cmp = strcmp($b['reading'], $a['reading']); break;
-            case 'power_desc': $main_cmp = ($b['pow'] ?? -1) <=> ($a['pow'] ?? -1); break;
-            case 'power_asc': $main_cmp = ($a['pow'] ?? -1) <=> ($b['pow'] ?? -1); break;
-            default: $main_cmp = strcmp($b['release_date'], $a['release_date']); break;
+            case 'release_old':
+                $main_cmp = strcmp($a['release_date'], $b['release_date']);
+                break;
+            case 'cost_desc':
+                $main_cmp = ($b['cost'] ?? -1) <=> ($a['cost'] ?? -1);
+                break;
+            case 'cost_asc':
+                $main_cmp = ($a['cost'] ?? -1) <=> ($b['cost'] ?? -1);
+                break;
+            case 'name_asc':
+                $main_cmp = strcmp($a['reading'], $b['reading']);
+                break;
+            case 'name_desc':
+                $main_cmp = strcmp($b['reading'], $a['reading']);
+                break;
+            case 'power_desc':
+                $main_cmp = ($b['pow'] ?? -1) <=> ($a['pow'] ?? -1);
+                break;
+            case 'power_asc':
+                $main_cmp = ($a['pow'] ?? -1) <=> ($b['pow'] ?? -1);
+                break;
+            default: // release_new
+                $main_cmp = strcmp($b['release_date'], $a['release_date']);
+                break;
         }
         
         // --- 最終的な優先順位で結果を返す ---
-        return $main_cmp ?: $rarity_cmp ?: $civ_cmp ?: $id_cmp;
-    });
-
-    // --- ステップ5: PHPでのページネーションと、表示用文明情報の後付け ---
-    $cards_on_page = array_slice($unique_cards, $offset, $perPage);
-    if (!empty($cards_on_page)) {
-        $card_ids_on_page = array_column($cards_on_page, 'card_id');
-        $civ_placeholders = implode(',', array_fill(0, count($card_ids_on_page), '?'));
-        $civ_sql = "SELECT card_id, GROUP_CONCAT(DISTINCT civilization_id ORDER BY civilization_id ASC SEPARATOR '') AS civ_ids FROM card_civilization WHERE card_id IN ({$civ_placeholders}) GROUP BY card_id";
-        $stmt = $pdo->prepare($civ_sql);
-        $stmt->execute($card_ids_on_page);
-        $civ_map = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-        foreach ($cards_on_page as $card) {
-            $card['civ_ids'] = $civ_map[$card['card_id']] ?? '';
-            $cards[] = $card;
+        // 文明が同じ場合は、card_idで比較する
+        if ($selected_sort === 'cost_desc' || $selected_sort === 'cost_asc' || $selected_sort === 'power_desc' || $selected_sort === 'power_asc') {
+             // コストやパワーがメインの場合、文明→IDの順
+             return $main_cmp ?: $rarity_cmp ?: $civ_cmp ?: $id_cmp;
+        } else {
+             // それ以外（発売日、名前）がメインの場合、IDの優先度を文明より高くする
+             // ただし、文明自体が違う場合は、文明を優先する
+             return $main_cmp ?: $rarity_cmp ?: $civ_cmp ?: $id_cmp;
         }
-    }
-}
+    });
 
 // --- カード画像のパスを事前に処理する ---
 foreach ($cards as $key => &$card) { // ★参照渡し(&)に変更
