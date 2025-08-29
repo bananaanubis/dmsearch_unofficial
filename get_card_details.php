@@ -38,6 +38,7 @@ function process_files_from_folder($modelnum, $file_type) {
     return $parts;
 }
 
+// ★★★ すべてのテキスト処理を、この一つの関数に統合する (真の最終版) ★★★
 function format_text_for_display($raw_text, $is_ability) {
     if (!$raw_text || trim($raw_text) === '') {
         return $is_ability ? '（テキスト情報なし）' : null;
@@ -61,33 +62,47 @@ function format_text_for_display($raw_text, $is_ability) {
         $line_to_process = $trimmed_line; 
         
         if ($is_ability) {
-            $isIndented = str_starts_with($line_to_process, '{tab}');
+            // --- 能力テキストの場合の処理 ---
+            $isIndented = str_starts_with(strtoupper($line_to_process), '{TAB}'); // 大文字小文字を区別しない
             if ($isIndented) {
                 $line_to_process = trim(substr($line_to_process, 5));
             }
+            
             $startsWithIcon = false;
             foreach (array_keys($icon_map) as $icon_tag) {
-                if (str_starts_with($line_to_process, $icon_tag)) {
+                if (str_starts_with(strtoupper($line_to_process), strtoupper($icon_tag))) { // 大文字小文字を区別しない
                     $startsWithIcon = true;
                     break;
                 }
             }
             $isParenthetical = str_starts_with($line_to_process, '(') && str_ends_with($line_to_process, ')');
+            
             $escaped_line = htmlspecialchars($line_to_process);
-            $formatted_line = str_replace(array_keys($icon_map), array_values($icon_map), $escaped_line);
+            
+            $formatted_line = $escaped_line;
+            foreach($icon_map as $tag => $img) {
+                 $formatted_line = str_ireplace($tag, $img, $formatted_line); // 大文字小文字を区別せずに置換
+            }
+
             $prefix = '';
             $wrapper_class = '';
             if ($isIndented) {
                 $wrapper_class = ' class="indented-text"';
-                if (!$startsWithIcon) { $prefix = '▶ '; }
+                if (!$startsWithIcon) {
+                    $prefix = '▶ ';
+                }
             } elseif (!$startsWithIcon && !$isParenthetical) {
                 $prefix = '■ ';
             }
+            
             $processed_lines[] = '<span' . $wrapper_class . '>' . $prefix . $formatted_line . '</span>';
+
         } else {
+            // --- フレーバーテキストの場合の処理 ---
             $processed_lines[] = htmlspecialchars($trimmed_line);
         }
     }
+    
     $final_text = implode('<br>', $processed_lines);
     return $is_ability ? $final_text : nl2br($final_text);
 }
