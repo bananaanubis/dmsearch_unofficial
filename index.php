@@ -318,6 +318,7 @@ if (!empty($all_matching_card_ids)) {
              return $main_cmp ?: $rarity_cmp ?: $civ_cmp ?: $id_cmp;
         }
     });
+}
 
 // --- カード画像のパスを事前に処理する ---
 foreach ($cards as $key => &$card) { // ★参照渡し(&)に変更
