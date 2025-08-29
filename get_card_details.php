@@ -13,12 +13,18 @@ function get_series_folder_from_modelnum($modelnum) {
 
 function process_files_from_folder($modelnum, $file_type) {
     if (!$modelnum) return [];
-    $series_folder = get_series_folder_from_modelnum($modelnum);
-    if (!$series_folder) return []; // 商品型番がなければフォルダもない
-    
-    $folder_path = $file_type . "/" . $series_folder . "/" . $modelnum;
-    if (!is_dir($folder_path)) return [];
 
+    // ★★★ここからが新しいロジック★★★
+    // modelnumから商品型番（例: 'dm01'）を抽出する
+    $parts = explode('-', $modelnum);
+    $series_folder = strtolower($parts[0]);
+    if (empty($series_folder)) return []; // 抽出できなければ終了
+
+    $folder_path = $file_type . "/" . $series_folder . "/" . $modelnum;
+    // ★★★ここまでが新しいロジック★★★
+
+    if (!is_dir($folder_path)) return [];
+    
     $parts = [];
     foreach (range('a', 'z') as $char) {
         $file_path = $folder_path . "/" . $modelnum . $char . ".txt";
