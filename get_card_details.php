@@ -193,6 +193,32 @@ foreach ($response['cards'] as &$card) {
     }
 }
 unset($card);
+// ★★★ここからが最後のデバッグコード★★★
+$debug_info = [];
+$first_card = $response['cards'][0] ?? null;
+if ($first_card) {
+    $modelnum = $first_card['modelnum'];
+    $series_folder = get_series_folder_from_modelnum($modelnum);
+
+    $debug_info['message'] = "--- DEBUGGING FILE PATHS ---";
+    $debug_info['modelnum_used'] = $modelnum;
+    $debug_info['series_folder_detected'] = $series_folder;
+    
+    // 通常カードのパス
+    $text_path_single = "text/" . $series_folder . "/" . $modelnum . ".txt";
+    $flavor_path_single = "flavortext/" . $series_folder . "/" . $modelnum . ".txt";
+    $debug_info['path_check_single_text'] = "[PATH] " . $text_path_single . " [EXISTS?] " . (file_exists($text_path_single) ? 'Yes' : 'No');
+    $debug_info['path_check_single_flavor'] = "[PATH] " . $flavor_path_single . " [EXISTS?] " . (file_exists($flavor_path_single) ? 'Yes' : 'No');
+
+    // セットカードのパス
+    $text_folder_path_set = "text/" . $series_folder . "/" . $modelnum;
+    $text_path_set_a = $text_folder_path_set . "/" . $modelnum . "a.txt";
+    $debug_info['path_check_set_text_folder'] = "[PATH] " . $text_folder_path_set . " [IS_DIR?] " . (is_dir($text_folder_path_set) ? 'Yes' : 'No');
+    $debug_info['path_check_set_text_file_a'] = "[PATH] " . $text_path_set_a . " [EXISTS?] " . (file_exists($text_path_set_a) ? 'Yes' : 'No');
+}
+// 最終的なレスポンスに、デバッグ情報を追加する
+$response['DEBUG_INFO'] = $debug_info;
+// ★★★ここまでが最後のデバッグコード★★★
 
 echo json_encode($response);
 ?>
