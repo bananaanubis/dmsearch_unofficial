@@ -363,34 +363,52 @@ document.addEventListener('DOMContentLoaded', () => {
         
         function formatAbilityText(rawText) {
             if (!rawText || rawText.trim() === '') return '（テキスト情報なし）';
+            
             const iconMap = {
-                '{st}' : '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
-                '{br}' : '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
-                '{sv}' : '<img src="parts/card_list_survivor.webp" alt="Survivor" class="text-icon">',
+                '{ST}' : '<img src="parts/card_list_strigger.webp" alt="S-Trigger" class="text-icon">',
+                '{BR}' : '<img src="parts/card_list_block.webp" alt="Blocker" class="text-icon">',
+                '{SV}' : '<img src="parts/card_list_survivor.webp" alt="Survivor" class="text-icon">',
                 '{TT}' : '<img src="parts/card_list_taptrigger.webp" alt="Tap-Trigger" class="text-icon">',
                 '{TR}' : '<img src="parts/card_list_turborush.webp" alt="Turbo-Rush" class="text-icon">',
+                '{SS}' : '<img src="parts/card_list_silentskill.webp" alt="Silent_Skill" class="text-icon">',
             };
             const iconTags = Object.keys(iconMap);
+        
             return rawText.split('\n').map(line => {
                 let trimmed = line.trim();
                 if (trimmed === '') return null;
-                const isIndented = trimmed.startsWith('{tab}');
-                if (isIndented) { trimmed = trimmed.substring(5).trim(); }
-                const startsWithIcon = iconTags.some(tag => trimmed.startsWith(tag));
+                
+                // 1. 各種フラグをチェック (大文字小文字を区別しない)
+                const isIndented = trimmed.toUpperCase().startsWith('{TAB}');
+                if (isIndented) {
+                    trimmed = trimmed.substring(5).trim();
+                }
+        
+                const startsWithIcon = iconTags.some(tag => trimmed.toUpperCase().startsWith(tag.toUpperCase()));
                 const isParenthetical = trimmed.startsWith('(') && trimmed.endsWith(')');
+        
+                // 2. HTMLエスケープとアイコン置換 (大文字小文字を区別しない)
                 let processedLine = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 for (const tag of iconTags) {
-                    processedLine = processedLine.replace(new RegExp(tag.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), iconMap[tag]);
+                    processedLine = processedLine.replace(new RegExp(tag.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'gi'), iconMap[tag.toLowerCase()] || iconMap[tag.toUpperCase()]);
                 }
+                
+                // 3. 行頭記号と字下げクラスを決定
                 let prefix = '';
                 let wrapperClass = '';
+        
                 if (isIndented) {
                     wrapperClass = ' class="indented-text"';
-                    if (!startsWithIcon) { prefix = '▶ '; }
+                    if (!startsWithIcon) {
+                        prefix = '▶ ';
+                    }
                 } else if (!startsWithIcon && !isParenthetical) {
                     prefix = '■ ';
                 }
+        
+                // 4. 最終的なHTMLを組み立てる
                 return `<span${wrapperClass}>${prefix}${processedLine}</span>`;
+        
             }).filter(line => line !== null).join('<br>');
         }
         function formatFlavorText(rawText) {
