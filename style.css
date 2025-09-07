@@ -512,7 +512,14 @@ h2 {
         gap: 5px; /* ボタン間の隙間を少し詰める */
     }
     /* ★★★ nth-childハックは完全に削除 ★★★ */
-
+    .civ-buttons {
+        flex-direction: column; /* 縦に並べる */
+        align-items: flex-start; /* 左寄せ */
+    }
+    .civ-button-row {
+        display: flex;
+        gap: 5px;
+    }
 
     /* --- コスト、パワー、発売年の入力欄 --- */
     .num-range-container,
