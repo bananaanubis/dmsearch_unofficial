@@ -498,29 +498,33 @@ h2 {
     /* --- モーダル本体のレイアウトを縦並びに変更 --- */
     .modal-body {
         flex-direction: column; /* 横並び(row)から縦並び(column)に変更 */
-        align-items: center;    /* 中身を中央揃えにする */
+        /* align-items は不要なので削除 */
     }
 
-    /* --- スマホ用に、画像と詳細エリアの幅を調整 --- */
-    .modal-left,
-    .modal-right {
-        width: 100%; /* 両方のエリアが、モーダルの全幅を使うようにする */
-        max-width: 400px; /* ただし、横幅が広くなりすぎないように上限を設定 */
-    }
-
-    /* --- 画像の下に、適切な余白を追加 --- */
+    /* --- 画像エリア (.modal-left) --- */
     .modal-left {
+        width: 100%; /* 幅を100%に */
+        display: flex; /* ★★★ 中のimgを中央揃えにするためにflexを指定 ★★★ */
+        justify-content: center; /* ★★★ 水平方向（左右）の中央揃え ★★★ */
         margin-bottom: 20px;
     }
     
+    /* --- 詳細情報エリア (.modal-right) --- */
+    .modal-right {
+        width: 100%; /* 幅を100%に */
+    }
+
     /* --- 画像サイズを、スマホ画面に合わせて少し調整 --- */
     .modal-left img {
-        width: 220px; /* PC(240px)より少しだけ小さくする */
+        width: 220px;
     }
 
-    /* --- テーブルの列幅を、スマホ用に調整 --- */
+    /* --- ★★★ テーブルのレイアウト崩れを修正 ★★★ --- */
+    .detail-table {
+        table-layout: auto; /* テーブルのレイアウト計算を自動に戻す */
+    }
     .detail-table th {
-        width: 35%; /* 見出し列の幅を少し広げて、折り返しを防ぐ */
+        width: auto; /* 見出し列の幅指定を解除 */
+        min-width: 80px; /* ただし、最低限の幅は確保する */
     }
-
 }
