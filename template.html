@@ -61,23 +61,42 @@
                         </button>
                     </div>
                 </div>
-                <div class="search-group">
-                    <div class="civ-buttons" id="main-civs-buttons">
-                        <?php foreach ($civilization_list as $civ): ?>
-                            <?php
-                                $civ_id = $civ['civilization_id'];
-                                $civ_name = $civ['civilization_name'];
-                                $is_selected = in_array($civ_id, $selected_main_civs);
-                                $value = $is_selected ? $civ_id : 0;
-                                $class = $is_selected ? '' : 'is-off';
-                            ?>
-                            <input type="hidden" name="main_civs[]" id="main_civ_<?= $civ_id ?>" value="<?= $value ?>">
-                            <button type="button" class="civ-btn <?= $class ?>" data-target-input="main_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
-                                <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
-                            </button>
-                        <?php endforeach; ?>
+                    <div class="search-group">
+                                    <div class="civ-buttons" id="main-civs-buttons">
+                                        <!-- ▼▼▼ 1行目 ▼▼▼ -->
+                                        <div class="civ-button-row">
+                                            <?php foreach (array_slice($civilization_list, 0, 3) as $civ): ?>
+                                                <?php
+                                                    $civ_id = $civ['civilization_id'];
+                                                    $civ_name = $civ['civilization_name'];
+                                                    $is_selected = in_array($civ_id, $selected_main_civs);
+                                                    $value = $is_selected ? $civ_id : 0;
+                                                    $class = $is_selected ? '' : 'is-off';
+                                                ?>
+                                                <input type="hidden" name="main_civs[]" id="main_civ_<?= $civ_id ?>" value="<?= $value ?>">
+                                                <button type="button" class="civ-btn <?= $class ?>" data-target-input="main_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
+                                                    <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
+                                                </button>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <!-- ▼▼▼ 2行目 ▼▼▼ -->
+                                        <div class="civ-button-row">
+                                            <?php foreach (array_slice($civilization_list, 3, 3) as $civ): ?>
+                                                <?php
+                                                    $civ_id = $civ['civilization_id'];
+                                                    $civ_name = $civ['civilization_name'];
+                                                    $is_selected = in_array($civ_id, $selected_main_civs);
+                                                    $value = $is_selected ? $civ_id : 0;
+                                                    $class = $is_selected ? '' : 'is-off';
+                                                ?>
+                                                <input type="hidden" name="main_civs[]" id="main_civ_<?= $civ_id ?>" value="<?= $value ?>">
+                                                <button type="button" class="civ-btn <?= $class ?>" data-target-input="main_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
+                                                    <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
+                                                </button>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
                     </div>
-                </div>
                 <div id="exclude-civs-section" style="display: none;">
                     <label class="search-label left-align-label">多色に含めない文明</label>
                     <div class="search-group">
