@@ -497,60 +497,55 @@ h2 {
         gap: 10px; /* 要素間の隙間を調整 */
     }
     
+    .search-group-container {
+        padding: 10px;
+    }
+    .search-group {
+        flex-wrap: wrap; 
+        gap: 15px 10px; /* 縦横の隙間を調整 */
+    }
+    
     /* --- 文明ボタンのレイアウト調整 --- */
     .civ-buttons {
-        justify-content: center; /* ボタンを中央揃えにする */
+        justify-content: flex-start; /* ★★★ 左寄せに変更 ★★★ */
         width: 100%;
+        gap: 5px; /* ボタン間の隙間を少し詰める */
     }
-    .civ-btn img {
-        width: 60px; /* スマホ用にボタンサイズを少し小さくする */
-    }
-    #main-civs-buttons .civ-btn:nth-child(4) {
-        /* 4番目のボタン（火）の前で改行させるためのハック */
-        margin-left: calc(50% - 95px);
-    }
-    #main-civs-buttons .civ-btn:nth-child(6) {
-         /* 6番目のボタン（無色）の前で改行させるためのハック */
-        margin-left: calc(50% - 35px);
-    }
-    .exclude-civ-wrapper {
-        flex-basis: 30%; /* 除外文明ボタンが3列になるように調整 */
-        display: flex !important;
-        justify-content: center;
-    }
+    /* ★★★ nth-childハックは完全に削除 ★★★ */
 
 
     /* --- コスト、パワー、発売年の入力欄 --- */
     .num-range-container,
     .cost-range-container {
-        width: 100%; /* コンテナを全幅に広げる */
+        width: 100%;
+        justify-content: space-between; /* 左右の入力欄を引き離す */
     }
     .rangenum-input {
-        width: 100%; /* 入力欄も全幅に広げる */
+        width: calc(50% - 20px); /* 幅を約半分に */
     }
     
 
     /* --- ドロップダウンリストのレイアウト調整 --- */
     .select-group {
-        flex-grow: 1; /* 利用可能なスペースを均等に分け合う */
-        flex-basis: calc(50% - 10px); /* 基本幅を約半分に設定 */
+        flex-grow: 1; 
+        flex-basis: calc(50% - 10px); /* 基本幅を約半分に */
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* ★★★ 中身を左寄せにする ★★★ */
     }
-    .styled-select {
-        width: 100%; /* ドロップダウンを親要素いっぱいに広げる */
+    .styled-select,
+    .is-empty2 { /* ★ is-empty2も対象に含める */
+        width: 100%;
         min-width: 0;
     }
-    /* 1つしか無い要素（ツインパクトなど）を全幅にする */
+    /* 1つしか無い要素を全幅にする */
     .search-group .select-group:only-child {
         flex-basis: 100%;
     }
-    /* 商品名とイラストレーターを全幅にする */
-    select[name="goods_id_filter"],
-    select[name="illus_id_filter"] {
-        width: 100%;
-    }
-    .select-group label {
-         width: 100%; /* ラベルも全幅にして中央揃えに対応 */
-         text-align: center;
+    /* ラベルを左寄せに戻す */
+    .select-group .search-label { /* ★セレクタをより詳細に */
+         width: 100%;
+         text-align: left;
     }
     
 }
