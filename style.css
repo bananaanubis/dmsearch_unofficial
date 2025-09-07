@@ -521,10 +521,12 @@ h2 {
 
     /* --- ★★★ テーブルのレイアウト崩れを修正 ★★★ --- */
     .detail-table {
-        table-layout: auto; /* テーブルのレイアウト計算を自動に戻す */
+        table-layout: fixed; /* テーブルのレイアウト計算を固定に戻す */
+        width: 100%; /* 親要素の幅いっぱいに広がるようにする */
     }
-    .detail-table th {
-        width: auto; /* 見出し列の幅指定を解除 */
-        min-width: 80px; /* ただし、最低限の幅は確保する */
+    .detail-table th,
+    .detail-table td {
+        width: 25%; /* すべてのセルを、テーブル幅の25%に均等割り付け */
+        /* widthの重複を避けるため、thとtdを一緒に指定する */
     }
 }
