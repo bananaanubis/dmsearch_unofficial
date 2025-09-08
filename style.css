@@ -516,7 +516,7 @@ h2 {
         width: 65px; /* スマホ用にボタンサイズを少し調整 */
     }
     .exclude-civ-wrapper {
-        display: flex !important; /* JavaScriptの制御を上書きして表示 */
+
     }
 
     /* --- コスト、パワー、発売年の入力欄 --- */
