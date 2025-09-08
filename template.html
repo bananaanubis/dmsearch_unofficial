@@ -2,12 +2,12 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>非公式カード検索</title>
+    <title>カード一覧</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h2 style="text-align:center;">カード検索</h2>
+<h2 style="text-align:center;">カード一覧</h2>
 
 <!-- ▼▼▼ 検索結果件数表示 ▼▼▼ -->
 <div class="search-results-summary">
@@ -35,18 +35,19 @@
             <button type="button" id="toggleBtn">全解除</button>
         </div>
         
-        
         <br>
         <button type="submit">検索</button>
         <br>
         <button type="button" class="reset-button">リセット</button>
-        <br>
-            <p class="detailBtn" id="toggle-advanced-btn">
+
+        <!-- ▼▼▼ 「さらに条件をしぼる」ボタン ▼▼▼ -->
+        <p class="detailBtn" id="toggle-advanced-btn">
             <?= $is_advanced_open ? '条件を隠す' : 'さらに条件をしぼる' ?>
         </p>
         
+        <!-- ▼▼▼ 詳細検索エリアを、ボタンの直下に移動 ▼▼▼ -->
         <div id="advanced-search-area" class="<?= $is_advanced_open ? 'is-open' : '' ?>">
-            <!-- 文明検索エリア -->
+            <!-- (中略: 文明検索からイラストレーター検索までの .search-group-container は、この中にそのまま入ります) -->
             <div class="search-group-container">
                 <label class="search-label left-align-label">文明</label><br>
                 <div class="search-group">
@@ -61,44 +62,47 @@
                         </button>
                     </div>
                 </div>
-                    <div class="search-group">
-                        <div class="civ-buttons" id="main-civs-buttons">
-                            <?php foreach ($civilization_list as $civ): ?>
-                                <?php
-                                    $civ_id = $civ['civilization_id'];
-                                    $civ_name = $civ['civilization_name'];
-                                    $is_selected = in_array($civ_id, $selected_main_civs);
-                                    $value = $is_selected ? $civ_id : 0;
-                                    $class = $is_selected ? '' : 'is-off';
-                                ?>
-                                <input type="hidden" name="main_civs[]" id="main_civ_<?= $civ_id ?>" value="<?= $value ?>">
-                                <button type="button" class="civ-btn <?= $class ?>" data-target-input="main_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
-                                    <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-<div class="civ-buttons" id="exclude-civ-buttons">
+                <div class="search-group">
+                    <div class="civ-buttons" id="main-civs-buttons">
                         <?php foreach ($civilization_list as $civ): ?>
                             <?php
                                 $civ_id = $civ['civilization_id'];
                                 $civ_name = $civ['civilization_name'];
-                                if ($civ_id == 6) continue;
-                                $is_selected = in_array($civ_id, $selected_exclude_civs);
+                                $is_selected = in_array($civ_id, $selected_main_civs);
                                 $value = $is_selected ? $civ_id : 0;
                                 $class = $is_selected ? '' : 'is-off';
                             ?>
-                            <div class="exclude-civ-wrapper" id="exclude-wrapper-<?= $civ_id ?>" style="display: none;">
-                                <input type="hidden" name="exclude_civs[]" id="exclude_civ_<?= $civ_id ?>" value="<?= $value ?>">
-                                <button type="button" class="civ-btn <?= $class ?>" data-target-input="exclude_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
-                                    <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
-                                </button>
-                            </div>
+                            <input type="hidden" name="main_civs[]" id="main_civ_<?= $civ_id ?>" value="<?= $value ?>">
+                            <button type="button" class="civ-btn <?= $class ?>" data-target-input="main_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
+                                <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
+                            </button>
                         <?php endforeach; ?>
                     </div>
+                </div>
+                <div id="exclude-civs-section" style="display: none;">
+                    <label class="search-label left-align-label">多色に含めない文明</label>
+                    <div class="search-group">
+                        <div class="civ-buttons" id="exclude-civ-buttons">
+                            <?php foreach ($civilization_list as $civ): ?>
+                                <?php
+                                    $civ_id = $civ['civilization_id'];
+                                    $civ_name = $civ['civilization_name'];
+                                    if ($civ_id == 6) continue;
+                                    $is_selected = in_array($civ_id, $selected_exclude_civs);
+                                    $value = $is_selected ? $civ_id : 0;
+                                    $class = $is_selected ? '' : 'is-off';
+                                ?>
+                                <div class="exclude-civ-wrapper" id="exclude-wrapper-<?= $civ_id ?>" style="display: none;">
+                                    <input type="hidden" name="exclude_civs[]" id="exclude_civ_<?= $civ_id ?>" value="<?= $value ?>">
+                                    <button type="button" class="civ-btn <?= $class ?>" data-target-input="exclude_civ_<?= $civ_id ?>" data-civ-id="<?= $civ_id ?>">
+                                        <img src="parts/<?= htmlspecialchars($civ_name) ?>.webp" alt="<?= htmlspecialchars($civ_name) ?>">
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <!-- (中略: 他の詳細検索フォームは変更なし) -->
             <div class="search-group-container">
                 <label class="search-label left-align-label">コスト</label>
                 <div class="search-group center-content">
@@ -286,12 +290,12 @@
                     </div>
                 </div>
             </div>
+
             <div class="advanced-buttons-bottom">
-                <button type="submit">検索</button><br>
+                <button type="submit">検索</button>
                 <button type="button" class="reset-button">リセット</button>
             </div>
         </div>
-
     </div>
     
     <input type="hidden" id="sort-order-hidden" name="sort_order" value="<?= htmlspecialchars($selected_sort) ?>">
