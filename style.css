@@ -552,6 +552,28 @@ h2 {
          width: 100%;
          text-align: left;
     }
+    /* --- 親コンテナの並び方向を「縦」に変更 --- */
+    #sort-area {
+        flex-direction: column; /* 横並び(row)から縦並び(column)に変更 */
+        align-items: flex-start; /* 中身を左寄せにする */
+        gap: 15px; /* 上下の要素間の隙間を確保 */
+    }
+
+    /* --- 左側のコンテナのスタイル調整 --- */
+    .sort-areaLeft {
+        width: 100%; /* 全幅を使うようにする */
+    }
+    .sort-areaLeft .select01 {
+        width: 100%; /* selectの親も全幅に */
+    }
+    .sort-areaLeft .is-empty2 {
+        width: 100%; /* ドロップダウン自体も全幅に広げる */
+    }
+    
+    /* --- 右側のコンテナのスタイル調整 --- */
+    .sort-areaRight {
+        width: 100%; /* 全幅を使うようにする */
+    }
     
 }
 
